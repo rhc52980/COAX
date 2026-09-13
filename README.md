@@ -122,11 +122,27 @@ the durable copy is the file.
 - **Save file** writes a `.coax.json` you can keep, version or email
 - **Open file** loads one back
 - **PNG** / **SVG** export whichever view is showing
-- **Print** for a hard copy or PDF
+- **Brief** assembles the whole printable document — see below
 
 Because autosave is keyed to how the file is opened, moving `coax.html` to
 another folder or machine can leave the autosave behind. Use **Save file** to
 carry work across.
+
+## The brief
+
+**Brief** assembles everything into one printable document and shows it as a
+paper-sized preview, so what you see is what prints. Per COA: the name, the
+concept, the chart, the synchronization matrix, and pros / cons / assumptions /
+risks. Then a final page with the comparison matrix, the weighted totals, and
+which COA scored highest.
+
+Checkboxes across the top control what goes in — all COAs or just the current
+one, chart, sync matrix, notes, comparison — plus portrait or landscape. The
+preview re-renders as you toggle. **Print / Save PDF** sends it to the browser's
+print dialog, where "Save as PDF" gives you the file.
+
+Sections that have nothing in them are left out rather than printed empty, so a
+COA you haven't written notes for doesn't produce a page of blank headings.
 
 ## Keyboard
 
