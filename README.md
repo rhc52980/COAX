@@ -7,6 +7,10 @@ action. Open it in a browser and you get a drag-and-drop board for laying out
 each COA, a synchronization matrix for putting those same steps against phases
 and lanes, and a weighted decision matrix for choosing between them.
 
+The same board also works for structures that aren't a plan at all — an org
+chart, a leadership team, a project's reporting lines. Two of the eight box
+types (Role, Group) and three of the templates exist for exactly that.
+
 No install, no server, no account, no network. One file.
 
 ![Platform](https://img.shields.io/badge/platform-any%20browser-lightgrey)
@@ -47,10 +51,12 @@ A drag-and-drop board — org-chart / flowchart style.
 - **Tab** on a selected box creates a connected child and drops you into typing
 - **Tidy** auto-arranges the whole thing into a clean tree
 
-Six box types — Action, Decision, Objective, Branch/Sequel, Risk, Note —
-distinguished by colour. Clicking a swatch sets the type of whatever is
-selected, and the type `Tab` gives new children; dragging one places a box
-instead.
+Eight box types, distinguished by colour: Action, Decision, Objective,
+Branch/Sequel, Risk, Note for planning a course of action — plus **Role /
+Person** and **Group / Team** for org charts and leadership structures, where
+a box is a seat or a department rather than a step. Clicking a swatch sets the
+type of whatever is selected, and the type `Tab` gives new children; dragging
+one places a box instead.
 
 ### Swim lanes
 
@@ -76,12 +82,14 @@ pros, cons, assumptions and risks side by side.
 
 ## Templates
 
-**Templates** opens a library of common COA shapes — click one and it lands as
-a new COA, already laid out, with its doctrine concept pre-filled in the notes
-panel. Under **Start here**: a blank single box, and a generic decision-branch
-skeleton. Under **Offense**: Frontal Attack, Single and Double Envelopment,
-Turning Movement, Infiltration, Penetration. Under **Defense**: Area Defense,
-Mobile Defense, Economy of Force.
+**Templates** opens a library of common shapes — click one and it lands as a
+new COA, already laid out, with a concept pre-filled in the notes panel. Under
+**Start here**: a blank single box, and a generic decision-branch skeleton.
+Under **Offense**: Frontal Attack, Single and Double Envelopment, Turning
+Movement, Infiltration, Penetration. Under **Defense**: Area Defense, Mobile
+Defense, Economy of Force. Under **Organization**: Basic Org Chart, Leadership
+Team, Project Team — built from Role and Group boxes rather than maneuver
+steps, for a reporting structure instead of a plan.
 
 Each template is built from a step outline internally — the same syntax and
 pipeline as Paste outline — so it inherits the same parsing rules (`?` for a
@@ -116,6 +124,8 @@ Cross LD at H-hour :: SP NLT 0500
 | `# Name` | start a new COA |
 | a line ending in `?` | a Decision box |
 | `!` prefix | a Risk box |
+| `%` prefix | a Role / Person box |
+| `&` prefix | a Group / Team box |
 | `title :: body` | split into the box's title and body text |
 | `@unit` at line end | assign the unit or owner |
 

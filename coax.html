@@ -107,9 +107,9 @@
   #editor:focus{outline:none}
 
   #toolbar{
-    position:absolute; left:12px; top:12px; z-index:4; display:flex; gap:6px;
-    background:rgba(24,29,38,.94); border:1px solid var(--line);
-    border-radius:8px; padding:6px;
+    position:absolute; left:12px; top:12px; right:12px; z-index:4; display:flex; gap:6px;
+    flex-wrap:wrap; background:rgba(24,29,38,.94); border:1px solid var(--line);
+    border-radius:8px; padding:6px; width:fit-content;
   }
   .swatch{
     width:26px;height:26px;border-radius:6px;border:2px solid transparent;cursor:grab;
@@ -427,6 +427,8 @@
         <code># Name</code><span>starts a new COA</span>
         <code>ends with ?</code><span>becomes a Decision box</span>
         <code>! prefix</code><span>becomes a Risk box</span>
+        <code>% prefix</code><span>becomes a Role / Person box</span>
+        <code>&amp; prefix</code><span>becomes a Group / Team box</span>
         <code>title :: body</code><span>splits the box into title and body text</span>
         <code>@unit</code><span>at the end of a line, assigns the unit or owner</span>
       </div>
@@ -510,6 +512,12 @@ const TYPES = {
   branch:    {label:"Br",  name:"Branch / Sequel", fill:"#ede9fe", stroke:"#7c3aed"},
   risk:      {label:"Rsk", name:"Risk",      fill:"#fee2e2", stroke:"#dc2626"},
   note:      {label:"Nte", name:"Note",      fill:"#f1f5f9", stroke:"#64748b"},
+  // Added for org charts / leadership structures — a box for one person or
+  // seat (role) and a box for a whole department or team (group), distinct
+  // from the COA-planning types above. Appended rather than interleaved so
+  // the existing six keep their positions in the palette.
+  role:      {label:"Rol", name:"Role / Person", fill:"#ccfbf1", stroke:"#0d9488"},
+  group:     {label:"Grp", name:"Group / Team",  fill:"#fce7f3", stroke:"#db2777"},
 };
 
 /* ---------------- state ---------------- */
@@ -1866,6 +1874,8 @@ function parseOutline(text){
     let t = line.trim().replace(BULLET, ""), body = "", type = "action", unit = "";
 
     if(/^!/.test(t)){ type = "risk"; t = t.replace(/^!\s*/, ""); }
+    else if(/^%/.test(t)){ type = "role"; t = t.replace(/^%\s*/, ""); }
+    else if(/^&/.test(t)){ type = "group"; t = t.replace(/^&\s*/, ""); }
     // Pull @unit off the end before anything else looks at the tail, so a
     // decision still reads as one: "Consolidate on OBJ? @B/2-7".
     const at = t.match(/\s+@([^@]+)$/);
@@ -2092,6 +2102,43 @@ Economy-of-force element screens a secondary sector :: Minimum essential force, 
     Enemy attacking in strength?
   Delay and disengage without becoming decisively engaged
   ! Screening force risks being overrun if reinforcement is late`},
+
+  // Not every chart is a maneuver plan. These use the Role and Group types
+  // (% and & in outline syntax) so a reporting-line structure reads as one
+  // on sight, instead of six boxes all labelled Action.
+  {id:"org-basic", tag:"Organization", name:"Basic Org Chart",
+   desc:"A straightforward reporting structure — executive, direct reports, their teams.",
+   concept:"A conventional top-down structure: one executive, a small set of direct reports each owning a function, and the teams under them.",
+   outline:`% Chief Executive Officer
+  % VP of Engineering
+    & Platform Team
+    & Product Team
+  % VP of Sales
+    % Regional Sales Manager
+  % VP of Marketing
+    & Brand & Content Team`},
+
+  {id:"org-leadership", tag:"Organization", name:"Leadership Team",
+   desc:"A lead plus functional deputies — reads equally well as a command staff or an executive team.",
+   concept:"A lead position with a deputy and three functional leads reporting directly, each owning a team. Flat enough to move fast, defined enough that nothing lacks an owner.",
+   outline:`% Lead / Director
+  % Deputy Lead / Deputy Director
+  % Operations Lead
+    & Operations Team
+  % Support & Logistics Lead
+    & Logistics Team
+  % Administration Lead`},
+
+  {id:"org-project", tag:"Organization", name:"Project Team",
+   desc:"A project lead with a workstream lead over each track of work.",
+   concept:"One project lead, one lead per workstream, each with the team actually doing that work — the structure for a cross-functional project rather than a standing department.",
+   outline:`% Project Lead
+  % Workstream Lead — Design
+    & Design Team
+  % Workstream Lead — Engineering
+    & Engineering Team
+  % Workstream Lead — QA
+    & QA Team`},
 ];
 
 const tmplScrim = document.getElementById("tmplScrim");
