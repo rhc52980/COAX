@@ -112,8 +112,16 @@
     border-radius:8px; padding:6px;
   }
   .swatch{
-    width:26px;height:26px;border-radius:6px;border:2px solid transparent;cursor:pointer;
+    width:26px;height:26px;border-radius:6px;border:2px solid transparent;cursor:grab;
     display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#0f172a;
+    touch-action:none; user-select:none;
+  }
+  .swatch:active{cursor:grabbing}
+  #swatchGhost{
+    position:fixed; z-index:40; pointer-events:none; transform:translate(-50%,-22px);
+    border:2px solid; border-radius:8px; padding:9px 10px;
+    font:600 13px "Segoe UI",Helvetica,Arial,sans-serif; color:#0f172a;
+    box-shadow:0 8px 22px rgba(0,0,0,.35); opacity:.92;
   }
   .swatch.on{border-color:#fff; box-shadow:0 0 0 2px var(--accent)}
 
@@ -873,19 +881,92 @@ function renderToolbar(){
     d.style.background = T.fill;
     d.style.borderColor = k === curType ? "#fff" : T.stroke;
     d.textContent = T.label;
-    d.title = T.name + " — click to set type of selection, or the default for new boxes";
-    d.onclick = () => {
-      curType = k;
-      if(sel.size){
-        snapshot();
-        sel.forEach(id => { const n = nodeById(id); if(n) n.type = k; });
-        save();
-      }
-      renderToolbar(); renderBoard();
-    };
+    d.title = T.name + " — drag onto the board to place one, or click to set the\n" +
+              "type of the selection and the default for new boxes";
+    d.addEventListener("pointerdown", ev => startSwatchDrag(ev, k, T));
     tb.appendChild(d);
   });
 }
+/* ---------------- drag a swatch onto the board ---------------- */
+/* One gesture, two outcomes: a real drag places (or retypes) a box, a plain
+   click keeps the old behaviour of setting the type. They are told apart by
+   distance, so a slightly shaky click is still a click. */
+const DRAG_SLOP = 5;
+let swatchDrag = null;
+
+function startSwatchDrag(ev, kind, T){
+  if(ev.button) return;
+  ev.preventDefault();
+  swatchDrag = {kind, T, x0:ev.clientX, y0:ev.clientY, moved:false, el:null};
+  ev.currentTarget.setPointerCapture(ev.pointerId);
+  ev.currentTarget.addEventListener("pointermove", onSwatchMove);
+  ev.currentTarget.addEventListener("pointerup", onSwatchUp, {once:true});
+  ev.currentTarget.addEventListener("pointercancel", onSwatchUp, {once:true});
+}
+function onSwatchMove(ev){
+  if(!swatchDrag) return;
+  if(!swatchDrag.moved){
+    if(Math.hypot(ev.clientX - swatchDrag.x0, ev.clientY - swatchDrag.y0) < DRAG_SLOP) return;
+    swatchDrag.moved = true;
+    const g = document.createElement("div");
+    g.id = "swatchGhost";
+    g.style.background = swatchDrag.T.fill;
+    g.style.borderColor = swatchDrag.T.stroke;
+    g.style.width = Math.round(NODE_W * view.z) + "px";
+    g.textContent = "New step";
+    document.body.appendChild(g);
+    swatchDrag.el = g;
+  }
+  swatchDrag.el.style.left = ev.clientX + "px";
+  swatchDrag.el.style.top = ev.clientY + "px";
+  paintDropTarget(ev);
+}
+function paintDropTarget(ev){
+  const old = document.getElementById("dropCell"); if(old) old.remove();
+  if(mode !== "swim" || !overBoard(ev)) return;
+  const p = toWorld(ev.clientX, ev.clientY), cell = cellAt(p.x, p.y);
+  if(!cell) return;
+  gOver.appendChild(el("rect", {id:"dropCell", x:cell.col.x, y:cell.row.y,
+    width:cell.col.w, height:cell.row.h, fill:"#2563eb", opacity:.1,
+    stroke:"#2563eb", "stroke-width":2, "pointer-events":"none"}));
+}
+const overBoard = ev => {
+  const r = svg.getBoundingClientRect();
+  return ev.clientX >= r.left && ev.clientX <= r.right &&
+         ev.clientY >= r.top  && ev.clientY <= r.bottom;
+};
+function onSwatchUp(ev){
+  const d = swatchDrag; swatchDrag = null;
+  if(!d) return;
+  ev.currentTarget.removeEventListener("pointermove", onSwatchMove);
+  if(d.el) d.el.remove();
+  const cell = document.getElementById("dropCell"); if(cell) cell.remove();
+
+  if(!d.moved){                       // plain click: old behaviour
+    curType = d.kind;
+    if(sel.size){
+      snapshot();
+      sel.forEach(id => { const n = nodeById(id); if(n) n.type = d.kind; });
+      save();
+    }
+    renderToolbar(); renderBoard();
+    return;
+  }
+  if(!overBoard(ev)) return;          // dropped outside: nothing happens
+  curType = d.kind;
+
+  // Dropping onto an existing box retypes it rather than stacking a new one.
+  const under = document.elementFromPoint(ev.clientX, ev.clientY);
+  const host = under && under.closest && under.closest("[data-node]");
+  if(host){
+    const n = nodeById(host.dataset.node);
+    if(n){ snapshot(); n.type = d.kind; save(); renderToolbar(); renderBoard(); return; }
+  }
+  const p = toWorld(ev.clientX, ev.clientY);
+  renderToolbar();
+  addBoxAt(p.x, p.y, d.kind, true);
+}
+
 function renderAll(){
   renderRail(); renderNotes(); renderToolbar(); renderSlbar(); renderUnitControls(); renderBoard();
   if(pane === "compare") renderCompare();
@@ -1199,20 +1280,28 @@ svg.addEventListener("dblclick", ev => {
     return;
   }
   const p = toWorld(ev.clientX, ev.clientY);
+  addBoxAt(p.x, p.y, curType, true);
+});
+
+/* Shared by double-click and by dropping a swatch from the palette. */
+function addBoxAt(wx, wy, type, thenEdit){
   snapshot();
-  const n = mkNode(snap(p.x - NODE_W/2), snap(p.y - 24), "New step", "", curType);
+  const n = mkNode(snap(wx - NODE_W/2), snap(wy - 24), "New step", "", type);
   if(mode === "swim"){
-    const cell = cellAt(p.x, p.y);
+    const cell = cellAt(wx, wy);
     if(cell){
       n.phase = cell.col.id === "__u" ? null : cell.col.id;
       n.lane  = cell.row.id === "__u" ? null : cell.row.id;
-      n.ord = dropOrd(n, cell, p.y);
+      n.ord = dropOrd(n, cell, wy);
     }
   }
   coa().nodes.push(n);
   sel.clear(); sel.add(n.id);
-  renderBoard(); save(); editNode(n.id);
-});
+  inspectFor = null;
+  renderBoard(); save();
+  if(thenEdit) editNode(n.id);
+  return n;
+}
 
 svg.addEventListener("wheel", ev => {
   ev.preventDefault();
