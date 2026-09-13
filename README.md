@@ -113,6 +113,23 @@ a single undo.
 
 Inside the box: `Tab` indents, `Ctrl+Enter` applies, `Esc` cancels.
 
+## Right-click
+
+The context menu changes with what is under the pointer.
+
+**On a box** — edit its text, add a child, duplicate it, change its type from a
+row of swatches, or delete it. Right-clicking a box that isn't selected selects
+it first; with several selected the menu says so (`Delete 3 boxes`) and acts on
+all of them.
+
+**On an arrow** — label it, **reverse its direction**, or delete it.
+
+**On empty board** — place a new box of any type *at the point you clicked*,
+open the paste dialog, select all, tidy, or fit to window.
+
+Every item shows its keyboard equivalent where it has one, and menu and
+shortcut run the same code, so neither can drift from the other.
+
 ## Who does what
 
 Every box can carry a **unit / task** — a unit, an asset, an owner, whoever is

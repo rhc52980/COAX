@@ -190,6 +190,30 @@
   }
   #unitFilter.active{border-color:var(--accent); color:#fff}
 
+  /* ---- right-click menu ---- */
+  #ctxMenu{
+    position:fixed; z-index:50; min-width:200px; display:none;
+    background:var(--panel); border:1px solid var(--line); border-radius:9px;
+    padding:5px; box-shadow:0 14px 40px rgba(0,0,0,.5);
+  }
+  #ctxMenu.on{display:block}
+  .ctxItem{
+    display:flex; width:100%; align-items:center; gap:12px; background:transparent;
+    border:none; border-radius:6px; padding:6px 9px; font-size:13px; text-align:left;
+    cursor:pointer; color:var(--text);
+  }
+  .ctxItem:hover{background:#28303e}
+  .ctxItem .k{margin-left:auto; color:var(--dim); font-size:11.5px}
+  .ctxItem.danger:hover{background:#43191c; color:#fecaca}
+  .ctxSep{height:1px; background:var(--line); margin:5px 3px}
+  .ctxLabel{
+    font-size:10.5px; letter-spacing:.9px; text-transform:uppercase;
+    color:var(--dim); padding:6px 9px 3px;
+  }
+  .ctxTypes{display:flex; gap:4px; padding:1px 7px 6px}
+  .ctxTypes .swatch{width:24px; height:24px; cursor:pointer}
+  .ctxTypes .swatch:hover{box-shadow:0 0 0 2px var(--accent)}
+
   /* ---- paste-outline modal ---- */
   #scrim{
     position:fixed; inset:0; z-index:20; background:rgba(8,11,16,.66);
@@ -334,6 +358,8 @@
   <input id="fileIn" type="file" accept=".json,application/json" style="display:none">
 </header>
 
+<div id="ctxMenu" role="menu"></div>
+
 <style id="briefPage">@page{size:portrait;margin:14mm}</style>
 <div id="briefWrap">
   <div id="briefBar">
@@ -410,7 +436,7 @@
     </div>
     <div id="inspect"></div>
     <datalist id="unitList"></datalist>
-    <div id="hint">Drag a swatch onto the board = new box &middot; Drag a side dot = arrow &middot; Tab on a selected box = child &middot; Del = delete &middot; Ctrl+Z = undo</div>
+    <div id="hint">Right-click for the menu &middot; Drag a swatch onto the board = new box &middot; Drag a side dot = arrow &middot; Tab = child box &middot; Ctrl+Z = undo</div>
     <div id="compare"></div>
   </main>
 
@@ -942,16 +968,7 @@ function onSwatchUp(ev){
   if(d.el) d.el.remove();
   const cell = document.getElementById("dropCell"); if(cell) cell.remove();
 
-  if(!d.moved){                       // plain click: old behaviour
-    curType = d.kind;
-    if(sel.size){
-      snapshot();
-      sel.forEach(id => { const n = nodeById(id); if(n) n.type = d.kind; });
-      save();
-    }
-    renderToolbar(); renderBoard();
-    return;
-  }
+  if(!d.moved){ setTypeOfSelection(d.kind); return; }   // plain click
   if(!overBoard(ev)) return;          // dropped outside: nothing happens
   curType = d.kind;
 
@@ -1100,8 +1117,8 @@ function setPane(v){
   document.querySelectorAll(".views button").forEach(b =>
     b.classList.toggle("on", b.dataset.view === v));
   document.getElementById("hint").textContent = v === "swim"
-    ? "Drag a swatch into a cell = new box there · Drag a box between cells to reassign it · Del = delete"
-    : "Drag a swatch onto the board = new box · Drag a side dot = arrow · Tab on a selected box = child · Del = delete · Ctrl+Z = undo";
+    ? "Right-click for the menu · Drag a swatch into a cell = new box there · Drag a box between cells to reassign it"
+    : "Right-click for the menu · Drag a swatch onto the board = new box · Drag a side dot = arrow · Tab = child box · Ctrl+Z = undo";
   document.getElementById("hint").style.display = v === "compare" ? "none" : "";
   renderAll();
   if(v !== "compare") fit();
@@ -1273,12 +1290,7 @@ svg.addEventListener("dblclick", ev => {
   const host = ev.target.closest && ev.target.closest("[data-node]");
   if(host){ editNode(host.dataset.node); return; }
   const eEl = ev.target.dataset && ev.target.dataset.edge;
-  if(eEl){
-    const e = coa().edges.find(x => x.id === eEl);
-    const lb = prompt("Arrow label (blank to clear)", e.label || "");
-    if(lb !== null){ snapshot(); e.label = lb.trim(); renderBoard(); save(); }
-    return;
-  }
+  if(eEl){ labelEdge(eEl); return; }
   // Empty board: nothing. Boxes are placed by dragging a swatch from the
   // palette, so a stray double-click no longer leaves one behind.
 });
@@ -1368,8 +1380,90 @@ editor.addEventListener("keydown", ev => {
   ev.stopPropagation();
 });
 
+/* ---------------- board actions ---------------- */
+/* Named so the keyboard and the context menu invoke the same code rather
+   than two copies that drift apart. */
+function duplicateSelection(){
+  if(!sel.size) return;
+  snapshot();
+  const clones = [];
+  sel.forEach(id => {
+    const n = nodeById(id); if(!n) return;
+    const c = JSON.parse(JSON.stringify(n));
+    c.id = uid(); c.x += 30; c.y += 30;
+    if(typeof c.ord === "number") c.ord += 0.5;   // lands just after the original in a swim cell
+    coa().nodes.push(c); clones.push(c.id);
+  });
+  sel = new Set(clones); inspectFor = null; renderBoard(); save();
+}
+function deleteSelection(){
+  if(!sel.size && !selEdge) return;
+  snapshot();
+  const C = coa();
+  if(selEdge){ C.edges = C.edges.filter(e => e.id !== selEdge); selEdge = null; }
+  if(sel.size){
+    C.nodes = C.nodes.filter(n => !sel.has(n.id));
+    C.edges = C.edges.filter(e => !sel.has(e.from) && !sel.has(e.to));
+    sel.clear();
+  }
+  inspectFor = null; renderBoard(); save();
+}
+function addChildOf(id){
+  const p = nodeById(id); if(!p) return;
+  snapshot();
+  const r = nodeRect(p);
+  const sibs = coa().edges.filter(e => e.from === p.id).length;
+  const child = mkNode(snap(p.x + sibs * (NODE_W + 30)), snap(p.y + r.h + 60),
+                       "New step", "", curType);
+  if(mode === "swim"){
+    // a child is the next thing that happens: same lane, next phase along
+    const C = coa();
+    const pi = C.phases.findIndex(x => x.id === p.phase);
+    child.phase = pi >= 0 ? (C.phases[pi + 1] || C.phases[pi]).id : p.phase;
+    child.lane = p.lane;
+    child.ord = p.ord + 1;
+  }
+  coa().nodes.push(child);
+  coa().edges.push({id:uid(), from:p.id, to:child.id, label:""});
+  sel = new Set([child.id]); inspectFor = null;
+  renderBoard(); save(); editNode(child.id);
+}
+function setTypeOfSelection(k){
+  curType = k;
+  if(sel.size){
+    snapshot();
+    sel.forEach(id => { const n = nodeById(id); if(n) n.type = k; });
+    save();
+  }
+  renderToolbar(); renderBoard();
+}
+function selectAllBoxes(){
+  sel = new Set(coa().nodes.map(n => n.id)); inspectFor = null; renderBoard();
+}
+function labelEdge(id){
+  const e = coa().edges.find(x => x.id === id); if(!e) return;
+  const lb = prompt("Arrow label (blank to clear)", e.label || "");
+  if(lb !== null){ snapshot(); e.label = lb.trim(); renderBoard(); save(); }
+}
+function reverseEdge(id){
+  const e = coa().edges.find(x => x.id === id); if(!e) return;
+  snapshot();
+  const f = e.from; e.from = e.to; e.to = f;
+  renderBoard(); save();
+}
+function deleteEdge(id){
+  snapshot();
+  coa().edges = coa().edges.filter(e => e.id !== id);
+  if(selEdge === id) selEdge = null;
+  renderBoard(); save();
+}
+
 /* ---------------- keyboard ---------------- */
 document.addEventListener("keydown", ev => {
+  if(ctxMenu.classList.contains("on")){
+    if(ev.key === "Escape"){ ev.preventDefault(); hideCtx(); return; }
+    hideCtx();
+  }
   // While the paste dialog is up it owns the keyboard — otherwise Delete or
   // Ctrl+Z would hit the board behind it whenever focus isn't in the textarea.
   if(scrim.classList.contains("on")){
@@ -1389,51 +1483,19 @@ document.addEventListener("keydown", ev => {
     ev.preventDefault(); redo(); return;
   }
   if(ctrl && ev.key.toLowerCase() === "d" && sel.size){
-    ev.preventDefault(); snapshot();
-    const clones = [];
-    sel.forEach(id => {
-      const n = nodeById(id); if(!n) return;
-      const c = JSON.parse(JSON.stringify(n));
-      c.id = uid(); c.x += 30; c.y += 30;
-      coa().nodes.push(c); clones.push(c.id);
-    });
-    sel = new Set(clones); renderBoard(); save(); return;
+    ev.preventDefault(); duplicateSelection(); return;
   }
   if(ev.key === "Delete" || ev.key === "Backspace"){
     if(!sel.size && !selEdge) return;
-    ev.preventDefault(); snapshot();
-    const C = coa();
-    if(selEdge){ C.edges = C.edges.filter(e => e.id !== selEdge); selEdge = null; }
-    if(sel.size){
-      C.nodes = C.nodes.filter(n => !sel.has(n.id));
-      C.edges = C.edges.filter(e => !sel.has(e.from) && !sel.has(e.to));
-      sel.clear();
-    }
-    renderBoard(); save(); return;
+    ev.preventDefault(); deleteSelection(); return;
   }
   if(ev.key === "Enter" && sel.size === 1){ ev.preventDefault(); editNode([...sel][0]); return; }
   if(ev.key === "Escape"){ sel.clear(); selEdge = null; renderBoard(); return; }
   if(ev.key === "Tab" && sel.size === 1){
-    ev.preventDefault(); snapshot();
-    const p = nodeById([...sel][0]); const r = nodeRect(p);
-    const sibs = coa().edges.filter(e => e.from === p.id).length;
-    const child = mkNode(snap(p.x + sibs * (NODE_W + 30)), snap(p.y + r.h + 60),
-                         "New step", "", curType);
-    if(mode === "swim"){
-      // a child is the next thing that happens: same lane, next phase along
-      const C = coa();
-      const pi = C.phases.findIndex(x => x.id === p.phase);
-      child.phase = pi >= 0 ? (C.phases[pi + 1] || C.phases[pi]).id : p.phase;
-      child.lane = p.lane;
-      child.ord = p.ord + 1;
-    }
-    coa().nodes.push(child);
-    coa().edges.push({id:uid(), from:p.id, to:child.id, label:""});
-    sel = new Set([child.id]);
-    renderBoard(); save(); editNode(child.id); return;
+    ev.preventDefault(); addChildOf([...sel][0]); return;
   }
   if(ctrl && ev.key.toLowerCase() === "a"){
-    ev.preventDefault(); sel = new Set(coa().nodes.map(n => n.id)); renderBoard(); return;
+    ev.preventDefault(); selectAllBoxes(); return;
   }
 });
 
@@ -2030,7 +2092,87 @@ document.getElementById("projTitle").value = state.title || "";
 setPane("chart");
 markSaved("saved");
 window.addEventListener("resize", applyView);
-svg.addEventListener("contextmenu", e => e.preventDefault());
+/* ---------------- right-click menu ---------------- */
+const ctxMenu = document.getElementById("ctxMenu");
+function hideCtx(){ ctxMenu.classList.remove("on"); ctxMenu.innerHTML = ""; }
+function ctxItem(label, key, fn, danger){
+  const b = document.createElement("button");
+  b.className = "ctxItem" + (danger ? " danger" : "");
+  b.type = "button";
+  b.innerHTML = `<span>${esc(label)}</span>` + (key ? `<span class="k">${esc(key)}</span>` : "");
+  b.onclick = () => { hideCtx(); fn(); };
+  return b;
+}
+function ctxSep(){ const d = document.createElement("div"); d.className = "ctxSep"; return d; }
+function ctxLabel(t){
+  const d = document.createElement("div"); d.className = "ctxLabel"; d.textContent = t; return d;
+}
+function ctxTypeRow(fn){
+  const row = document.createElement("div");
+  row.className = "ctxTypes";
+  Object.entries(TYPES).forEach(([k, T]) => {
+    const d = document.createElement("div");
+    d.className = "swatch";
+    d.style.background = T.fill; d.style.borderColor = T.stroke;
+    d.textContent = T.label; d.title = T.name;
+    d.onclick = () => { hideCtx(); fn(k); };
+    row.appendChild(d);
+  });
+  return row;
+}
+function showCtxAt(cx, cy){
+  ctxMenu.classList.add("on");
+  ctxMenu.style.left = "0px"; ctxMenu.style.top = "0px";
+  const r = ctxMenu.getBoundingClientRect();        // measure, then keep it on screen
+  ctxMenu.style.left = Math.max(8, Math.min(cx, innerWidth  - r.width  - 8)) + "px";
+  ctxMenu.style.top  = Math.max(8, Math.min(cy, innerHeight - r.height - 8)) + "px";
+}
+
+svg.addEventListener("contextmenu", ev => {
+  ev.preventDefault();
+  const host = ev.target.closest && ev.target.closest("[data-node]");
+  const edgeId = ev.target.dataset && ev.target.dataset.edge;
+  const p = toWorld(ev.clientX, ev.clientY);
+  ctxMenu.innerHTML = "";
+
+  if(host){
+    const id = host.dataset.node;
+    if(!sel.has(id)){ sel.clear(); sel.add(id); selEdge = null; inspectFor = null; renderBoard(); }
+    const many = sel.size > 1;
+    if(!many){
+      ctxMenu.append(ctxItem("Edit text", "Enter", () => editNode(id)));
+      ctxMenu.append(ctxItem("Add child box", "Tab", () => addChildOf(id)));
+    }
+    ctxMenu.append(ctxItem(many ? `Duplicate ${sel.size} boxes` : "Duplicate box",
+      "Ctrl+D", duplicateSelection));
+    ctxMenu.append(ctxSep(), ctxLabel(many ? "Set type of all" : "Type"),
+      ctxTypeRow(setTypeOfSelection));
+    ctxMenu.append(ctxSep(), ctxItem(many ? `Delete ${sel.size} boxes` : "Delete box",
+      "Del", deleteSelection, true));
+  }else if(edgeId){
+    selEdge = edgeId; sel.clear(); inspectFor = null; renderBoard();
+    ctxMenu.append(ctxItem("Label arrow…", "", () => labelEdge(edgeId)));
+    ctxMenu.append(ctxItem("Reverse direction", "", () => reverseEdge(edgeId)));
+    ctxMenu.append(ctxSep(), ctxItem("Delete arrow", "Del", () => deleteEdge(edgeId), true));
+  }else{
+    sel.clear(); selEdge = null; inspectFor = null; renderBoard();
+    ctxMenu.append(ctxLabel("New box here"), ctxTypeRow(k => addBoxAt(p.x, p.y, k)));
+    ctxMenu.append(ctxSep());
+    ctxMenu.append(ctxItem("Paste outline…", "", openPaste));
+    ctxMenu.append(ctxItem("Select all boxes", "Ctrl+A", selectAllBoxes));
+    if(mode !== "swim") ctxMenu.append(ctxItem("Tidy", "", tidy));
+    ctxMenu.append(ctxItem("Fit to window", "", fit));
+  }
+  showCtxAt(ev.clientX, ev.clientY);
+});
+
+// Dismiss on any press outside it. Capture phase so the menu is gone before
+// the board handles the same click.
+document.addEventListener("pointerdown", ev => {
+  if(ctxMenu.classList.contains("on") && !ctxMenu.contains(ev.target)) hideCtx();
+}, true);
+svg.addEventListener("wheel", hideCtx, {passive:true});
+window.addEventListener("blur", hideCtx);
 </script>
 </body>
 </html>
