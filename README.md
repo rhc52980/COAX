@@ -74,6 +74,22 @@ A weighted decision matrix. Criteria as rows, COAs as columns, weights you set,
 scores 1–5, totals computed, best highlighted. Underneath, every COA's concept,
 pros, cons, assumptions and risks side by side.
 
+## Templates
+
+**Templates** opens a library of common COA shapes — click one and it lands as
+a new COA, already laid out, with its doctrine concept pre-filled in the notes
+panel. Under **Start here**: a blank single box, and a generic decision-branch
+skeleton. Under **Offense**: Frontal Attack, Single and Double Envelopment,
+Turning Movement, Infiltration, Penetration. Under **Defense**: Area Defense,
+Mobile Defense, Economy of Force.
+
+Each template is built from a step outline internally — the same syntax and
+pipeline as Paste outline — so it inherits the same parsing rules (`?` for a
+decision, `!` for a risk, and so on). Adjust it afterward like any other COA;
+nothing about a template box is special once it's placed.
+
+Reachable from the header, or right-click empty board / empty rail space.
+
 ## Starting from an outline
 
 Planning usually starts as a list in a document or an email, and retyping it as

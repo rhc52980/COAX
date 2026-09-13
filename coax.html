@@ -260,6 +260,36 @@
   #pasteCount{flex:1; font-size:12.5px; color:var(--dim)}
   #pasteCount.bad{color:#fbbf24}
 
+  /* ---- template library ---- */
+  #tmplScrim{
+    position:fixed; inset:0; z-index:20; background:rgba(8,11,16,.66);
+    display:none; align-items:center; justify-content:center; padding:24px;
+  }
+  #tmplScrim.on{display:flex}
+  #tmpl{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    width:min(920px,100%); max-height:100%; display:flex; flex-direction:column;
+    box-shadow:0 24px 70px rgba(0,0,0,.55);
+  }
+  #tmpl h2{margin:0; padding:14px 18px; font-size:15px; border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:10px}
+  #tmpl h2 .sp{flex:1}
+  #tmplBody{padding:16px 18px; overflow:auto}
+  .tmplGroup + .tmplGroup{margin-top:18px}
+  .tmplGroup h3{
+    margin:0 0 10px; font-size:11px; letter-spacing:.9px; text-transform:uppercase; color:var(--dim);
+  }
+  .tmplGrid{display:grid; gap:10px; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr))}
+  .tmplCard{
+    display:flex; flex-direction:column; gap:6px; text-align:left;
+    background:var(--panel2); border:1px solid var(--line); border-radius:9px;
+    padding:11px 12px 12px; cursor:pointer;
+  }
+  .tmplCard:hover{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent)}
+  .tmplCard .nm{font-size:13.5px; font-weight:600}
+  .tmplCard .ds{font-size:12px; color:var(--dim); line-height:1.4; flex:1}
+  .tmplCard .ct{font-size:11px; color:#93a0b4}
+
   /* ---- briefing export ---- */
   #briefWrap{position:fixed; inset:0; z-index:30; background:#0b0e14; display:none; flex-direction:column}
   #briefWrap.on{display:flex}
@@ -348,6 +378,7 @@
     <button data-view="compare">Compare</button>
   </div>
   <span class="sep"></span>
+  <button id="btnTemplates" title="Start a COA from a common maneuver template">Templates</button>
   <button id="btnPaste" title="Turn a pasted outline into boxes">Paste outline</button>
   <button id="btnTidy" title="Auto-arrange the chart">Tidy</button>
   <button id="btnFit" title="Fit to window">Fit</button>
@@ -410,6 +441,13 @@
       <button id="pasteCancel">Cancel</button>
       <button id="pasteGo" class="primary">Add boxes</button>
     </div>
+  </div>
+</div>
+
+<div id="tmplScrim">
+  <div id="tmpl" role="dialog" aria-modal="true" aria-labelledby="tmplTitle">
+    <h2 id="tmplTitle">Template library<span class="sp"></span><button id="tmplClose" class="ghost">Close</button></h2>
+    <div id="tmplBody"></div>
   </div>
 </div>
 
@@ -1623,6 +1661,10 @@ document.addEventListener("keydown", ev => {
     if(ev.key === "Escape"){ ev.preventDefault(); closePaste(); }
     return;
   }
+  if(tmplScrim.classList.contains("on")){
+    if(ev.key === "Escape"){ ev.preventDefault(); closeTemplates(); }
+    return;
+  }
   if(document.body.classList.contains("briefing")){
     if(ev.key === "Escape"){ ev.preventDefault(); closeBrief(); }
     return;
@@ -1937,6 +1979,166 @@ pasteText.addEventListener("keydown", ev => {
   if(ev.key === "Escape"){ ev.preventDefault(); closePaste(); }
   ev.stopPropagation();
 });
+
+/* ---------------- template library ---------------- */
+/* Each template is expressed as outline text — the same syntax Paste outline
+   already parses — so inserting one reuses that tested pipeline (parseOutline
+   + itemsIntoCoa + layoutTree) instead of a second way of building a COA.
+   No "#" headings: parseOutline gives back exactly one section, whose items
+   become the new COA; the template's own name/concept are applied after. */
+const TEMPLATES = [
+  {id:"blank", tag:"Start here", name:"Blank COA",
+   desc:"Just a start box. For when you'd rather build from nothing than adapt a shape.",
+   concept:"",
+   outline:`Start :: Trigger condition / current posture`},
+
+  {id:"decision", tag:"Start here", name:"Decision Branch",
+   desc:"One trigger, one action, a decision point, two branches. The generic skeleton under most COAs.",
+   concept:"",
+   outline:`Start :: Trigger condition / current posture
+  Execute planned action
+    Decision point reached?
+  Branch A — continue as planned
+  Branch B — shift to the sequel`},
+
+  {id:"frontal", tag:"Offense", name:"Frontal Attack",
+   desc:"Direct assault on the objective. Fast and simple, concentrates risk on the assaulting force.",
+   concept:"Main effort attacks directly into the enemy position to seize the objective quickly, accepting higher risk to the force in exchange for tempo and simplicity.",
+   outline:`Cross LD at H-hour :: Main effort attacks directly toward the objective
+  Suppress enemy positions :: Direct and indirect fires forward
+  Assault the objective
+    Objective secured?
+  Consolidate and reorganize
+  ! Highest risk to the assaulting force — minimal maneuver advantage`},
+
+  {id:"envelop-single", tag:"Offense", name:"Single Envelopment",
+   desc:"Fix the enemy frontally while the main effort swings around an open flank.",
+   concept:"A supporting attack fixes the enemy's front while the main effort maneuvers around the open flank to strike where the defense is weakest.",
+   outline:`Fix the enemy in place :: Supporting attack holds enemy frontage
+  Feint on the fixed flank
+Main effort maneuvers around the open flank
+  Seize the flank objective
+    Enemy repositioned to counter?
+  Roll up enemy positions from the flank
+  ! Envelopment exposed if the fixing force cannot hold`},
+
+  {id:"envelop-double", tag:"Offense", name:"Double Envelopment",
+   desc:"Both flanks attack simultaneously to encircle the enemy. High coordination risk, high payoff.",
+   concept:"A frontal supporting attack fixes the enemy while two main efforts envelop both flanks simultaneously, aiming to encircle and destroy the force in place.",
+   outline:`Fix the enemy with a frontal supporting attack
+Left main effort envelops the north flank
+  Seize northern objective
+Right main effort envelops the south flank
+  Seize southern objective
+    Pincers linked up?
+  Encircle and reduce the pocket
+  ! Requires precise timing between both envelopments — high coordination risk`},
+
+  {id:"turning", tag:"Offense", name:"Turning Movement",
+   desc:"Bypass the defense entirely and threaten something the enemy can't ignore.",
+   concept:"The force bypasses the enemy's main defensive position to seize a deep objective threatening its line of communication, forcing the enemy to abandon prepared positions and fight on ground of our choosing.",
+   outline:`Bypass the enemy's main defensive position
+  Seize a deep objective that threatens the enemy's line of communication
+    Enemy forced to abandon the defense?
+  Enemy displaces to meet the threat
+Follow-on force destroys the enemy in the open
+  ! Depends on speed and surprise — a slow turning force can be cut off`},
+
+  {id:"infiltration", tag:"Offense", name:"Infiltration",
+   desc:"Small elements move by stealth through gaps, then strike from an unexpected direction.",
+   concept:"Small elements infiltrate through gaps in enemy positions by stealth, assemble undetected near the objective, and attack simultaneously from an unexpected direction.",
+   outline:`Small elements infiltrate through gaps in enemy positions :: Movement by stealth, minimal contact
+  Assemble at the objective rally point
+    Assembled undetected?
+  Simultaneous attack from an unexpected direction
+  Link up with the main body
+  ! Detection during infiltration surrenders surprise`},
+
+  {id:"penetration", tag:"Offense", name:"Penetration",
+   desc:"Mass overwhelming combat power on a narrow front, break through, then widen and exploit.",
+   concept:"Combat power concentrates on a narrow front to breach the enemy line, then widens the shoulders of the penetration before exploiting through the gap.",
+   outline:`Concentrate combat power on a narrow front :: Mass fires and maneuver at the chosen point
+  Breach the enemy line
+    Breach successful?
+  Widen the shoulders of the penetration
+  Exploit through the gap
+  ! Flanks of the penetration are exposed until secured`},
+
+  {id:"area-defense", tag:"Defense", name:"Area Defense",
+   desc:"Defense organized in depth: security zone delays, main line holds, reserve restores.",
+   concept:"A security zone identifies and delays the enemy forward of the main line, the main battle area engages from mutually supporting positions in depth, and the reserve counterattacks to restore any penetration.",
+   outline:`Security zone identifies and delays the enemy :: Early warning and disruption forward of the main line
+  Main battle area engages the enemy :: Defense organized in mutually supporting positions in depth
+    Penetration of the main line?
+  Reserve counterattacks to restore the position
+  ! Depth trades space for time — rearward positions must still hold`},
+
+  {id:"mobile-defense", tag:"Defense", name:"Mobile Defense",
+   desc:"Trade space for a controlled penetration, then destroy the enemy with a striking force.",
+   concept:"A minimum forward force fixes the enemy while a controlled penetration draws it into a kill zone, where a mobile striking force counterattacks the flank and rear to destroy it.",
+   outline:`Fix the enemy with minimum forces forward :: Economy-of-force screen absorbs the initial attack
+  Allow controlled penetration into a kill zone
+    Enemy committed into the kill zone?
+  Strike force counterattacks the enemy's flank and rear
+  Destroy the enemy in the kill zone
+  ! Requires accepting terrain loss forward — risk if the enemy does not commit as expected`},
+
+  {id:"economy-of-force", tag:"Defense", name:"Economy of Force",
+   desc:"Screen a secondary sector with minimum strength so the main effort can concentrate elsewhere.",
+   concept:"The main effort concentrates combat power elsewhere while a minimum-strength element screens a secondary sector, trading depth for early warning and disengaging rather than becoming decisively engaged.",
+   outline:`Main effort concentrates combat power elsewhere
+Economy-of-force element screens a secondary sector :: Minimum essential force, maximum early warning
+  Report enemy activity
+    Enemy attacking in strength?
+  Delay and disengage without becoming decisively engaged
+  ! Screening force risks being overrun if reinforcement is late`},
+];
+
+const tmplScrim = document.getElementById("tmplScrim");
+function renderTmplBody(){
+  const host = document.getElementById("tmplBody");
+  host.innerHTML = "";
+  const groups = new Map();
+  TEMPLATES.forEach(t => { if(!groups.has(t.tag)) groups.set(t.tag, []); groups.get(t.tag).push(t); });
+  groups.forEach((list, tag) => {
+    const g = document.createElement("div");
+    g.className = "tmplGroup";
+    g.innerHTML = `<h3>${esc(tag)}</h3>`;
+    const grid = document.createElement("div");
+    grid.className = "tmplGrid";
+    list.forEach(t => {
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "tmplCard";
+      card.innerHTML = `<span class="nm">${esc(t.name)}</span><span class="ds">${esc(t.desc)}</span><span class="ct">Use template &rarr;</span>`;
+      card.onclick = () => useTemplate(t.id);
+      grid.appendChild(card);
+    });
+    g.appendChild(grid);
+    host.appendChild(g);
+  });
+}
+function openTemplates(){
+  renderTmplBody();
+  tmplScrim.classList.add("on");
+}
+function closeTemplates(){ tmplScrim.classList.remove("on"); }
+function useTemplate(id){
+  const t = TEMPLATES.find(x => x.id === id); if(!t) return;
+  snapshot();
+  const c = newCoa(t.name);
+  const sections = parseOutline(t.outline);
+  if(sections.length) itemsIntoCoa(c, sections[0].items);
+  layoutTree(c);
+  if(t.concept) c.notes.concept = t.concept;
+  state.coas.push(c); state.active = c.id;
+  sel.clear(); selEdge = null; inspectFor = null;
+  closeTemplates();
+  renderAll(); fit(); save();
+}
+document.getElementById("btnTemplates").onclick = openTemplates;
+document.getElementById("tmplClose").onclick = closeTemplates;
+tmplScrim.addEventListener("pointerdown", ev => { if(ev.target === tmplScrim) closeTemplates(); });
 
 /* ---------------- compare view ---------------- */
 function totalFor(c){
@@ -2375,6 +2577,7 @@ svg.addEventListener("contextmenu", ev => {
     sel.clear(); selEdge = null; inspectFor = null; renderBoard();
     ctxMenu.append(ctxLabel("New box here"), ctxTypeRow(k => addBoxAt(p.x, p.y, k)));
     ctxMenu.append(ctxSep());
+    ctxMenu.append(ctxItem("Templates…", "", openTemplates));
     ctxMenu.append(ctxItem("Paste outline…", "", openPaste));
     ctxMenu.append(ctxItem("Select all boxes", "Ctrl+A", selectAllBoxes));
     if(mode !== "swim") ctxMenu.append(ctxItem("Tidy", "", tidy));
@@ -2404,7 +2607,8 @@ document.getElementById("rail").addEventListener("contextmenu", ev => {
   ctxMenu.innerHTML = "";
   ctxMenu.append(ctxItem("New COA", "", addNewCoa));
   ctxMenu.append(ctxItem("Duplicate current COA", "", () => duplicateCoa(state.active)));
-  ctxMenu.append(ctxSep(), ctxItem("Paste outline…", "", openPaste));
+  ctxMenu.append(ctxSep(), ctxItem("Templates…", "", openTemplates));
+  ctxMenu.append(ctxItem("Paste outline…", "", openPaste));
   showCtxAt(ev.clientX, ev.clientY);
 });
 
