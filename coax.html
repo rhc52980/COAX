@@ -163,6 +163,46 @@
   .nBlock.pros textarea{border-left:3px solid #22c55e}
   .nBlock.cons textarea{border-left:3px solid #ef4444}
 
+  /* ---- paste-outline modal ---- */
+  #scrim{
+    position:fixed; inset:0; z-index:20; background:rgba(8,11,16,.66);
+    display:none; align-items:center; justify-content:center; padding:24px;
+  }
+  #scrim.on{display:flex}
+  #paste{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    width:min(760px,100%); max-height:100%; display:flex; flex-direction:column;
+    box-shadow:0 24px 70px rgba(0,0,0,.55);
+  }
+  #paste h2{margin:0; padding:14px 18px; font-size:15px; border-bottom:1px solid var(--line)}
+  #paste .body{padding:14px 18px; overflow:auto}
+  #pasteText{
+    width:100%; height:210px; resize:vertical; background:#0e131b; color:var(--text);
+    border:1px solid var(--line); border-radius:8px; padding:10px 12px;
+    font:13px/1.5 ui-monospace,Consolas,"Courier New",monospace; white-space:pre; overflow-wrap:normal;
+  }
+  #pasteText:focus{outline:none; border-color:var(--accent)}
+  .legend{
+    margin-top:12px; display:grid; gap:4px 14px; grid-template-columns:auto 1fr;
+    font-size:12.5px; color:var(--dim);
+  }
+  .legend code{
+    background:var(--panel2); border:1px solid var(--line); border-radius:4px;
+    padding:1px 5px; color:#cbd5e1; font:12px ui-monospace,Consolas,monospace; white-space:nowrap;
+  }
+  .modes{display:flex; gap:6px; margin-top:14px; flex-wrap:wrap}
+  .modes label{
+    display:flex; align-items:center; gap:6px; padding:6px 10px; font-size:13px;
+    background:var(--panel2); border:1px solid var(--line); border-radius:7px; cursor:pointer;
+  }
+  .modes label:has(input:checked){border-color:var(--accent); background:#1d2b45}
+  #pasteFoot{
+    display:flex; align-items:center; gap:10px; padding:12px 18px;
+    border-top:1px solid var(--line);
+  }
+  #pasteCount{flex:1; font-size:12.5px; color:var(--dim)}
+  #pasteCount.bad{color:#fbbf24}
+
   @media print{
     header,#rail,#notes,#toolbar,#zoombar,#hint,#slbar{display:none!important}
     #app{height:auto}
@@ -184,6 +224,7 @@
     <button data-view="compare">Compare</button>
   </div>
   <span class="sep"></span>
+  <button id="btnPaste" title="Turn a pasted outline into boxes">Paste outline</button>
   <button id="btnTidy" title="Auto-arrange the chart">Tidy</button>
   <button id="btnFit" title="Fit to window">Fit</button>
   <span class="sp"></span>
@@ -197,6 +238,33 @@
   <button id="btnImport">Open file</button>
   <input id="fileIn" type="file" accept=".json,application/json" style="display:none">
 </header>
+
+<div id="scrim">
+  <div id="paste" role="dialog" aria-modal="true" aria-labelledby="pasteTitle">
+    <h2 id="pasteTitle">Paste an outline</h2>
+    <div class="body">
+      <textarea id="pasteText" spellcheck="false" placeholder="Cross LD at H-hour&#10;  Seize OBJ FALCON&#10;    Consolidate on OBJ?&#10;  Screen east flank&#10;Pass FSE forward"></textarea>
+      <div class="legend">
+        <code>&nbsp;&nbsp;indent</code><span>makes a child box, with the arrow drawn for you</span>
+        <code>blank line</code><span>starts a new chain back at the top</span>
+        <code># Name</code><span>starts a new COA</span>
+        <code>ends with ?</code><span>becomes a Decision box</span>
+        <code>! prefix</code><span>becomes a Risk box</span>
+        <code>title :: body</code><span>splits the box into title and body text</span>
+      </div>
+      <div class="modes">
+        <label><input type="radio" name="pmode" value="append" checked> Add to this COA</label>
+        <label><input type="radio" name="pmode" value="replace"> Replace this COA</label>
+        <label><input type="radio" name="pmode" value="new"> Create new COAs</label>
+      </div>
+    </div>
+    <div id="pasteFoot">
+      <span id="pasteCount">Nothing to add yet.</span>
+      <button id="pasteCancel">Cancel</button>
+      <button id="pasteGo" class="primary">Add boxes</button>
+    </div>
+  </div>
+</div>
 
 <div id="slbar">
   <div class="grp"><span class="lb">Phases</span><div class="chips" id="phaseChips"></div>
@@ -1041,6 +1109,12 @@ editor.addEventListener("keydown", ev => {
 
 /* ---------------- keyboard ---------------- */
 document.addEventListener("keydown", ev => {
+  // While the paste dialog is up it owns the keyboard — otherwise Delete or
+  // Ctrl+Z would hit the board behind it whenever focus isn't in the textarea.
+  if(scrim.classList.contains("on")){
+    if(ev.key === "Escape"){ ev.preventDefault(); closePaste(); }
+    return;
+  }
   const tag = (ev.target.tagName || "").toLowerCase();
   if(tag === "input" || tag === "textarea" || tag === "select") return;
   const ctrl = ev.ctrlKey || ev.metaKey;
@@ -1099,10 +1173,13 @@ document.addEventListener("keydown", ev => {
 });
 
 /* ---------------- tidy / fit ---------------- */
-function tidy(){
-  const C = coa();
-  if(mode === "swim" || !C.nodes.length) return;   // swim layout is computed, not placed
-  snapshot();
+/* Pure tree layout for any COA — not just the active one, so pasted outlines
+   can be arranged before you ever switch to them. Heights come from
+   layoutNode directly rather than nodeRect, which would consult swim-lane
+   slots that only exist for the COA on screen. */
+function layoutTree(C){
+  if(!C.nodes.length) return;
+  const byId = new Map(C.nodes.map(n => [n.id, n]));
   const kids = new Map(), indeg = new Map();
   C.nodes.forEach(n => { kids.set(n.id, []); indeg.set(n.id, 0); });
   C.edges.forEach(e => {
@@ -1120,14 +1197,14 @@ function tidy(){
   function widthOf(id){
     if(placed.has(id)) return 0;
     const ch = kids.get(id).filter(c => !placed.has(c));
-    if(!ch.length) return nodeById(id).w;
-    return Math.max(nodeById(id).w, ch.reduce((s,c) => s + widthOf(c) + GAPX, -GAPX));
+    if(!ch.length) return byId.get(id).w;
+    return Math.max(byId.get(id).w, ch.reduce((s,c) => s + widthOf(c) + GAPX, -GAPX));
   }
   function place(id, left, depth){
     if(placed.has(id)) return;
     placed.add(id);
-    const n = nodeById(id), r = nodeRect(n);
-    rowH.set(depth, Math.max(rowH.get(depth) || 0, r.h));
+    const n = byId.get(id);
+    rowH.set(depth, Math.max(rowH.get(depth) || 0, layoutNode(n, n.w).h));
     const ch = kids.get(id).filter(c => !placed.has(c));
     const w = Math.max(n.w, ch.reduce((s,c) => s + widthOf(c) + GAPX, -GAPX));
     n._d = depth; n._x = left + (w - n.w) / 2;
@@ -1148,6 +1225,12 @@ function tidy(){
     n.x = snap(n._x); n.y = snap(rowY.get(n._d) || 0);
     delete n._d; delete n._x;
   });
+}
+function tidy(){
+  const C = coa();
+  if(mode === "swim" || !C.nodes.length) return;   // swim layout is computed, not placed
+  snapshot();
+  layoutTree(C);
   renderBoard(); save(); fit();
 }
 function bbox(){
@@ -1197,6 +1280,139 @@ document.getElementById("btnDupCoa").onclick = () => {
   state.coas.push(c); state.active = c.id; sel.clear();
   renderAll(); save();
 };
+
+/* ---------------- paste an outline ---------------- */
+/* Leading list markers people paste from docs and mail: -, *, bullets,
+   "1.", "1)", "a.", "(2)". Matched only when followed by a space, so
+   "e.g. something" survives. */
+const BULLET = /^(?:[-*+•·▪]|\(?\d+[.)]|\(?[A-Za-z][.)])\s+/;
+
+function parseOutline(text){
+  const sections = [];
+  let cur = null, stack = [];
+  const startSection = name => { cur = {name:name, items:[]}; stack = []; sections.push(cur); };
+
+  String(text == null ? "" : text).split(/\r?\n/).forEach(raw => {
+    const line = raw.replace(/\t/g, "    ").replace(/\s+$/, "");
+    if(!line.trim()){ stack = []; return; }          // blank line: back to top level
+
+    const head = line.match(/^\s*#+\s*(.*)$/);
+    if(head){ startSection(head[1].trim()); return; }
+
+    if(!cur) startSection("");
+    const indent = line.match(/^ */)[0].length;      // measured before markers are stripped
+    let t = line.trim().replace(BULLET, ""), body = "", type = "action";
+
+    if(/^!/.test(t)){ type = "risk"; t = t.replace(/^!\s*/, ""); }
+    const split = t.split(/\s*::\s*/);
+    if(split.length > 1){ t = split[0]; body = split.slice(1).join(" :: "); }
+    t = t.trim();
+    if(type === "action" && /\?$/.test(t)) type = "decision";
+
+    while(stack.length && stack[stack.length - 1].indent >= indent) stack.pop();
+    const parent = stack.length ? stack[stack.length - 1].idx : null;
+    stack.push({indent, idx:cur.items.length});
+    cur.items.push({title:t || "Untitled", body:body.trim(), type, parent});
+  });
+  return sections.filter(s => s.items.length);
+}
+
+function itemsIntoCoa(C, items){
+  const ids = items.map(() => uid());
+  items.forEach((it, i) => {
+    const n = mkNode(0, 0, it.title, it.body, it.type);
+    n.id = ids[i];
+    C.nodes.push(n);
+    if(it.parent != null) C.edges.push({id:uid(), from:ids[it.parent], to:ids[i], label:""});
+  });
+}
+
+const scrim = document.getElementById("scrim");
+const pasteText = document.getElementById("pasteText");
+let modeTouched = false;
+const pasteMode = () => document.querySelector('input[name=pmode]:checked').value;
+
+function updatePasteCount(){
+  const sections = parseOutline(pasteText.value);
+  const boxes = sections.reduce((s, x) => s + x.items.length, 0);
+  const arrows = sections.reduce((s, x) => s + x.items.filter(i => i.parent != null).length, 0);
+  const el = document.getElementById("pasteCount");
+  const go = document.getElementById("pasteGo");
+
+  // A pasted outline with headings is almost always several COAs — preselect
+  // that, but stop guessing the moment the user picks a mode themselves.
+  if(!modeTouched && sections.length > 1)
+    document.querySelector('input[name=pmode][value=new]').checked = true;
+
+  if(!boxes){
+    el.textContent = "Nothing to add yet."; el.className = "bad";
+    go.disabled = true; return;
+  }
+  go.disabled = false; el.className = "";
+  const bits = boxes + (boxes === 1 ? " box" : " boxes") +
+               " · " + arrows + (arrows === 1 ? " arrow" : " arrows");
+  const m = pasteMode();
+  el.textContent = m === "new"
+    ? bits + " → " + sections.length + (sections.length === 1 ? " new COA" : " new COAs")
+    : bits + (m === "replace" ? " → replacing " : " → into ") + coa().name;
+}
+function openPaste(){
+  modeTouched = false;
+  scrim.classList.add("on");
+  updatePasteCount();
+  pasteText.focus();
+}
+function closePaste(){ scrim.classList.remove("on"); }
+
+function applyOutline(){
+  const sections = parseOutline(pasteText.value);
+  if(!sections.length) return;
+  const m = pasteMode();
+  snapshot();
+  if(m === "new"){
+    let first = null;
+    sections.forEach(sec => {
+      const c = newCoa(sec.name || ("COA " + (state.coas.length + 1)));
+      itemsIntoCoa(c, sec.items);
+      layoutTree(c);
+      state.coas.push(c);
+      if(!first) first = c;
+    });
+    state.active = first.id;
+  }else{
+    const C = coa();
+    if(m === "replace"){ C.nodes = []; C.edges = []; }
+    sections.forEach(sec => itemsIntoCoa(C, sec.items));
+    layoutTree(C);
+  }
+  sel.clear(); selEdge = null;
+  closePaste();
+  pasteText.value = "";
+  renderAll();
+  if(pane !== "compare") fit();
+  save();
+}
+
+document.getElementById("btnPaste").onclick = openPaste;
+document.getElementById("pasteCancel").onclick = closePaste;
+document.getElementById("pasteGo").onclick = applyOutline;
+pasteText.addEventListener("input", updatePasteCount);
+document.querySelectorAll('input[name=pmode]').forEach(r => {
+  r.addEventListener("change", () => { modeTouched = true; updatePasteCount(); });
+});
+scrim.addEventListener("pointerdown", ev => { if(ev.target === scrim) closePaste(); });
+pasteText.addEventListener("keydown", ev => {
+  if(ev.key === "Tab"){            // indent in place — Tab must not leave the box
+    ev.preventDefault();
+    const s = pasteText.selectionStart, e = pasteText.selectionEnd, v = pasteText.value;
+    pasteText.value = v.slice(0, s) + "  " + v.slice(e);
+    pasteText.selectionStart = pasteText.selectionEnd = s + 2;
+    updatePasteCount();
+  }
+  if(ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)){ ev.preventDefault(); applyOutline(); }
+  if(ev.key === "Escape"){ ev.preventDefault(); closePaste(); }
+  ev.stopPropagation();
+});
 
 /* ---------------- compare view ---------------- */
 function totalFor(c){

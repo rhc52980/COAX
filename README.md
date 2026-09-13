@@ -70,6 +70,44 @@ A weighted decision matrix. Criteria as rows, COAs as columns, weights you set,
 scores 1–5, totals computed, best highlighted. Underneath, every COA's concept,
 pros, cons, assumptions and risks side by side.
 
+## Starting from an outline
+
+Planning usually starts as a list in a document or an email, and retyping it as
+boxes is the tedious part. **Paste outline** turns text straight into a laid-out
+chart — indentation becomes hierarchy, and the arrows are drawn for you.
+
+```
+# COA 1 — Direct
+Cross LD at H-hour :: SP NLT 0500
+  Seize OBJ FALCON
+    Consolidate on OBJ?
+  Screen east flank
+  ! Flank exposed to counterattack
+
+# COA 2 — Envelopment
+1. Feint on axis BLUE
+   a) Main effort north
+```
+
+| Written as | Means |
+| --- | --- |
+| indentation | a child box, with the arrow drawn |
+| blank line | start a new chain back at the top |
+| `# Name` | start a new COA |
+| a line ending in `?` | a Decision box |
+| `!` prefix | a Risk box |
+| `title :: body` | split into the box's title and body text |
+
+List markers you paste in — `-`, `*`, `1.`, `a)`, `(2)` — are stripped
+automatically, so an outline copied out of a document usually just works.
+
+Three modes: **add to this COA**, **replace this COA**, or **create new COAs**
+(one per `#` heading). The footer tells you what you're about to get —
+`7 boxes · 5 arrows → 2 new COAs` — before you commit, and the whole import is
+a single undo.
+
+Inside the box: `Tab` indents, `Ctrl+Enter` applies, `Esc` cancels.
+
 ## Building several COAs
 
 The left rail holds your COAs. The fast path is **Duplicate current** — build
