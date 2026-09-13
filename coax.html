@@ -873,22 +873,11 @@ function renderRail(){
     d.querySelector(".nm").textContent = c.name;
     d.onclick = ev => {
       const act = ev.target.dataset.act;
-      if(act === "ren"){
-        const nm = prompt("Rename COA", c.name);
-        if(nm){ snapshot(); c.name = nm.trim() || c.name; renderAll(); save(); }
-        return;
-      }
-      if(act === "del"){
-        if(state.coas.length === 1){ alert("Keep at least one COA."); return; }
-        if(!confirm(`Delete "${c.name}"? This cannot be undone except with Ctrl+Z.`)) return;
-        snapshot();
-        state.coas = state.coas.filter(x => x.id !== c.id);
-        if(state.active === c.id) state.active = state.coas[0].id;
-        sel.clear(); renderAll(); save();
-        return;
-      }
-      state.active = c.id; sel.clear(); selEdge = null; renderAll(); save();
+      if(act === "ren"){ renameCoa(c.id); return; }
+      if(act === "del"){ deleteCoa(c.id); return; }
+      activateCoa(c.id);
     };
+    d.addEventListener("contextmenu", ev => railMenu(ev, c.id));
     list.appendChild(d);
   });
 }
@@ -1587,15 +1576,18 @@ document.getElementById("btnTidy").onclick = tidy;
 document.getElementById("btnFit").onclick = fit;
 
 /* ---------------- COA management ---------------- */
-document.getElementById("btnNewCoa").onclick = () => {
+/* Named so the buttons, the rail menu and anything later all share them. */
+function addNewCoa(){
   snapshot();
   const c = newCoa("COA " + (state.coas.length + 1));
-  state.coas.push(c); state.active = c.id; sel.clear();
-  renderAll(); save();
-};
-document.getElementById("btnDupCoa").onclick = () => {
+  state.coas.push(c); state.active = c.id;
+  sel.clear(); selEdge = null; inspectFor = null;
+  renderAll(); fit(); save();
+  return c;
+}
+function duplicateCoa(id){
+  const src = state.coas.find(c => c.id === id); if(!src) return;
   snapshot();
-  const src = coa();
   const c = JSON.parse(JSON.stringify(src));
   c.id = uid(); c.name = src.name + " (copy)";
   const map = {};
@@ -1604,9 +1596,46 @@ document.getElementById("btnDupCoa").onclick = () => {
   const idm = {};
   c.phases.concat(c.lanes).forEach(x => { const o = x.id; x.id = uid(); idm[o] = x.id; });
   c.nodes.forEach(n => { n.phase = idm[n.phase] || null; n.lane = idm[n.lane] || null; });
-  state.coas.push(c); state.active = c.id; sel.clear();
+  state.coas.splice(state.coas.indexOf(src) + 1, 0, c);   // sits next to its original
+  state.active = c.id;
+  sel.clear(); selEdge = null; inspectFor = null;
   renderAll(); save();
-};
+}
+function renameCoa(id){
+  const c = state.coas.find(x => x.id === id); if(!c) return;
+  const nm = prompt("Rename COA", c.name);
+  if(nm === null) return;
+  const t = nm.trim(); if(!t) return;
+  snapshot(); c.name = t; renderAll(); save();
+}
+function deleteCoa(id){
+  const c = state.coas.find(x => x.id === id); if(!c) return;
+  if(state.coas.length === 1){ alert("Keep at least one COA."); return; }
+  if(!confirm(`Delete "${c.name}"? This cannot be undone except with Ctrl+Z.`)) return;
+  snapshot();
+  state.coas = state.coas.filter(x => x.id !== id);
+  if(state.active === id) state.active = state.coas[0].id;
+  sel.clear(); selEdge = null; inspectFor = null;
+  renderAll(); fit(); save();
+}
+/* Rail order is also the column order in the comparison matrix, so being able
+   to reorder matters beyond tidiness. */
+function moveCoa(id, delta){
+  const i = state.coas.findIndex(c => c.id === id);
+  const j = i + delta;
+  if(i < 0 || j < 0 || j >= state.coas.length) return;
+  snapshot();
+  state.coas.splice(j, 0, state.coas.splice(i, 1)[0]);
+  renderAll(); save();
+}
+function activateCoa(id){
+  if(state.active === id) return;
+  state.active = id;
+  sel.clear(); selEdge = null; inspectFor = null;
+  renderAll(); fit(); save();
+}
+document.getElementById("btnNewCoa").onclick = addNewCoa;
+document.getElementById("btnDupCoa").onclick = () => duplicateCoa(state.active);
 
 /* ---------------- paste an outline ---------------- */
 /* Leading list markers people paste from docs and mail: -, *, bullets,
@@ -2163,6 +2192,31 @@ svg.addEventListener("contextmenu", ev => {
     if(mode !== "swim") ctxMenu.append(ctxItem("Tidy", "", tidy));
     ctxMenu.append(ctxItem("Fit to window", "", fit));
   }
+  showCtxAt(ev.clientX, ev.clientY);
+});
+
+function railMenu(ev, id){
+  ev.preventDefault();
+  ev.stopPropagation();            // don't also open the empty-rail menu
+  activateCoa(id);
+  const i = state.coas.findIndex(c => c.id === id);
+  const only = state.coas.length === 1;
+  ctxMenu.innerHTML = "";
+  ctxMenu.append(ctxItem("Rename COA…", "", () => renameCoa(id)));
+  ctxMenu.append(ctxItem("Duplicate COA", "", () => duplicateCoa(id)));
+  ctxMenu.append(ctxSep());
+  if(i > 0) ctxMenu.append(ctxItem("Move up", "", () => moveCoa(id, -1)));
+  if(i < state.coas.length - 1) ctxMenu.append(ctxItem("Move down", "", () => moveCoa(id, 1)));
+  ctxMenu.append(ctxItem("New COA", "", addNewCoa));
+  if(!only) ctxMenu.append(ctxSep(), ctxItem("Delete COA", "", () => deleteCoa(id), true));
+  showCtxAt(ev.clientX, ev.clientY);
+}
+document.getElementById("rail").addEventListener("contextmenu", ev => {
+  ev.preventDefault();             // empty rail space, below the list
+  ctxMenu.innerHTML = "";
+  ctxMenu.append(ctxItem("New COA", "", addNewCoa));
+  ctxMenu.append(ctxItem("Duplicate current COA", "", () => duplicateCoa(state.active)));
+  ctxMenu.append(ctxSep(), ctxItem("Paste outline…", "", openPaste));
   showCtxAt(ev.clientX, ev.clientY);
 });
 

@@ -127,6 +127,10 @@ all of them.
 **On empty board** — place a new box of any type *at the point you clicked*,
 open the paste dialog, select all, tidy, or fit to window.
 
+**On a COA in the left rail** — rename, duplicate, move it up or down the
+list, add a new one, or delete it. Right-clicking empty rail space offers new,
+duplicate current, and paste outline.
+
 Every item shows its keyboard equivalent where it has one, and menu and
 shortcut run the same code, so neither can drift from the other.
 
@@ -154,8 +158,13 @@ boxes still unassigned.
 ## Building several COAs
 
 The left rail holds your COAs. The fast path is **Duplicate current** — build
-COA 2 from COA 1 and change two boxes. Node and arrow identities are remapped
-properly, so the copy is genuinely independent.
+COA 2 from COA 1 and change two boxes. Node, arrow, phase and lane identities
+are all remapped, so the copy is genuinely independent, and it lands directly
+below its original rather than at the end of the list.
+
+Right-click a COA to reorder it with **Move up** / **Move down**. Rail order is
+also the column order in the comparison matrix, so this is worth having when
+you want the COAs presented in a particular sequence.
 
 ## Saving
 
