@@ -97,6 +97,7 @@ Cross LD at H-hour :: SP NLT 0500
 | a line ending in `?` | a Decision box |
 | `!` prefix | a Risk box |
 | `title :: body` | split into the box's title and body text |
+| `@unit` at line end | assign the unit or owner |
 
 List markers you paste in — `-`, `*`, `1.`, `a)`, `(2)` — are stripped
 automatically, so an outline copied out of a document usually just works.
@@ -107,6 +108,27 @@ Three modes: **add to this COA**, **replace this COA**, or **create new COAs**
 a single undo.
 
 Inside the box: `Tab` indents, `Ctrl+Enter` applies, `Esc` cancels.
+
+## Who does what
+
+Every box can carry a **unit / task** — a unit, an asset, an owner, whoever is
+responsible. Select a box and the inspector appears along the bottom of the
+canvas; type into **Unit / task** and it shows on the box under a thin rule. In
+the swim view the same inspector also carries the box's phase and lane.
+
+Units are free text with autocomplete drawn from every unit already used in the
+project, so you get consistency without maintaining a roster. Pasted outlines
+can set them directly with a trailing `@unit`.
+
+The **unit filter** in the toolbar fades everything not assigned to the unit you
+pick, rather than hiding it — the shape of the plan stays readable while you
+follow one unit through it. The filter is a screen aid only: PNG, SVG and the
+brief always render every box at full strength, so nothing ever prints
+half-faded.
+
+The brief's **Task org** table turns all of this into the "who does what" page —
+every unit, its tasks, and the phase and lane each falls in, with a count of any
+boxes still unassigned.
 
 ## Building several COAs
 
@@ -132,14 +154,14 @@ carry work across.
 
 **Brief** assembles everything into one printable document and shows it as a
 paper-sized preview, so what you see is what prints. Per COA: the name, the
-concept, the chart, the synchronization matrix, and pros / cons / assumptions /
-risks. Then a final page with the comparison matrix, the weighted totals, and
-which COA scored highest.
+concept, the chart, the synchronization matrix, the task organization, and
+pros / cons / assumptions / risks. Then a final page with the comparison
+matrix, the weighted totals, and which COA scored highest.
 
 Checkboxes across the top control what goes in — all COAs or just the current
-one, chart, sync matrix, notes, comparison — plus portrait or landscape. The
-preview re-renders as you toggle. **Print / Save PDF** sends it to the browser's
-print dialog, where "Save as PDF" gives you the file.
+one, chart, sync matrix, task org, notes, comparison — plus portrait or
+landscape. The preview re-renders as you toggle. **Print / Save PDF** sends it
+to the browser's print dialog, where "Save as PDF" gives you the file.
 
 Sections that have nothing in them are left out rather than printed empty, so a
 COA you haven't written notes for doesn't produce a page of blank headings.

@@ -72,8 +72,6 @@
   .chip button.rm:hover{color:var(--danger)}
   #slbar .vsep{width:1px; height:20px; background:var(--line)}
   #slbar label.chk{display:flex; align-items:center; gap:5px; font-size:12.5px; color:var(--dim)}
-  #assignBox{display:flex; align-items:center; gap:5px; font-size:12.5px; color:var(--dim)}
-  #assignBox select{background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:3px 5px; font-size:12.5px}
 
   /* ---- left rail ---- */
   #rail{
@@ -162,6 +160,27 @@
   .nBlock textarea:focus{outline:none; border-color:var(--accent)}
   .nBlock.pros textarea{border-left:3px solid #22c55e}
   .nBlock.cons textarea{border-left:3px solid #ef4444}
+
+  /* ---- selected-box inspector ---- */
+  #inspect{
+    position:absolute; left:12px; right:12px; bottom:8px; z-index:4; display:none;
+    align-items:center; gap:8px; flex-wrap:wrap;
+    background:rgba(24,29,38,.96); border:1px solid var(--line);
+    border-radius:8px; padding:6px 10px;
+  }
+  #inspect.on{display:flex}
+  #inspect .lb{font-size:11px; letter-spacing:.9px; text-transform:uppercase; color:var(--dim)}
+  #inspect input, #inspect select{
+    background:var(--panel2); border:1px solid var(--line); border-radius:6px;
+    padding:4px 7px; font-size:13px; color:var(--text);
+  }
+  #inspect input{min-width:190px}
+  #inspect input:focus, #inspect select:focus{outline:none; border-color:var(--accent)}
+  #unitFilter{
+    background:var(--panel2); border:1px solid var(--line); border-radius:6px;
+    padding:5px 7px; font-size:13px; max-width:190px;
+  }
+  #unitFilter.active{border-color:var(--accent); color:#fff}
 
   /* ---- paste-outline modal ---- */
   #scrim{
@@ -294,6 +313,7 @@
   <button id="btnPaste" title="Turn a pasted outline into boxes">Paste outline</button>
   <button id="btnTidy" title="Auto-arrange the chart">Tidy</button>
   <button id="btnFit" title="Fit to window">Fit</button>
+  <select id="unitFilter" title="Fade everything not assigned to this unit"></select>
   <span class="sp"></span>
   <span id="saveState"></span>
   <span class="sep"></span>
@@ -313,6 +333,7 @@
     <label><input type="checkbox" id="bAll" checked> All COAs</label>
     <label><input type="checkbox" id="bChart" checked> Chart</label>
     <label><input type="checkbox" id="bSwim"> Sync matrix</label>
+    <label><input type="checkbox" id="bTasks"> Task org</label>
     <label><input type="checkbox" id="bNotes" checked> Notes</label>
     <label><input type="checkbox" id="bCmp" checked> Comparison</label>
     <span class="lb" style="margin-left:6px">Page</span>
@@ -336,6 +357,7 @@
         <code>ends with ?</code><span>becomes a Decision box</span>
         <code>! prefix</code><span>becomes a Risk box</span>
         <code>title :: body</code><span>splits the box into title and body text</span>
+        <code>@unit</code><span>at the end of a line, assigns the unit or owner</span>
       </div>
       <div class="modes">
         <label><input type="radio" name="pmode" value="append" checked> Add to this COA</label>
@@ -359,8 +381,6 @@
     <button id="addLane" title="Add a lane row">+</button></div>
   <span class="vsep"></span>
   <label class="chk"><input type="checkbox" id="swimArrows"> Arrows</label>
-  <span class="sp" style="flex:1"></span>
-  <div id="assignBox"></div>
 </div>
 
 <div id="app">
@@ -380,6 +400,8 @@
     <div id="zoombar">
       <button class="ghost" id="zOut">&minus;</button><span id="zLbl">100%</span><button class="ghost" id="zIn">+</button>
     </div>
+    <div id="inspect"></div>
+    <datalist id="unitList"></datalist>
     <div id="hint">Double-click board = new box &middot; Drag a side dot = arrow &middot; Tab on a selected box = child &middot; Del = delete &middot; Ctrl+Z = undo</div>
     <div id="compare"></div>
   </main>
@@ -399,7 +421,7 @@ const NS = "http://www.w3.org/2000/svg";
 const FONT = '"Segoe UI",Helvetica,Arial,sans-serif';
 const KEY = "coax-v1", KEY_OLD = "coa-planner-v1";
 const GRID = 10, NODE_W = 190, PAD = 10;
-const T_SIZE = 13, T_LH = 17, B_SIZE = 12, B_LH = 16;
+const T_SIZE = 13, T_LH = 17, B_SIZE = 12, B_LH = 16, U_SIZE = 11, U_LH = 14;
 /* swim-lane frame metrics (world units) */
 const SL_GUT = 140, SL_COLW = 250, SL_HEAD = 40, SL_PAD = 12, SL_GAP = 10, SL_ROWMIN = 92;
 
@@ -461,7 +483,7 @@ function newCoa(name){
 }
 function mkNode(x, y, title, body, type){
   return {id:uid(), x, y, w:NODE_W, title, body, type:type||"action",
-    phase:null, lane:null, ord:0};
+    phase:null, lane:null, ord:0, unit:""};
 }
 /* older saves predate phases/lanes — backfill so they open cleanly */
 function normalizeCoa(c){
@@ -474,6 +496,7 @@ function normalizeCoa(c){
   c.nodes.forEach((n, i) => {
     if(n.phase === undefined) n.phase = null;
     if(n.lane === undefined) n.lane = null;
+    if(typeof n.unit !== "string") n.unit = "";
     if(typeof n.ord !== "number") n.ord = i;
   });
   return c;
@@ -550,8 +573,10 @@ function layoutNode(n, w){
   const innerW = (w || n.w) - PAD * 2;
   const tl = wrap(n.title || "Untitled", innerW, T_SIZE, 600);
   const bl = n.body ? wrap(n.body, innerW, B_SIZE, 400) : [];
-  const h = PAD + tl.length * T_LH + (bl.length ? 6 + bl.length * B_LH : 0) + PAD;
-  return {titleLines: tl, bodyLines: bl, h: Math.max(46, h)};
+  const ul = n.unit ? wrap(n.unit, innerW, U_SIZE, 600) : [];
+  const h = PAD + tl.length * T_LH + (bl.length ? 6 + bl.length * B_LH : 0) +
+            (ul.length ? 8 + ul.length * U_LH : 0) + PAD;
+  return {titleLines: tl, bodyLines: bl, unitLines: ul, h: Math.max(46, h)};
 }
 /* the one place that decides where a box sits — chart uses its own x/y,
    swim mode uses the cell the phase/lane assignment puts it in */
@@ -719,6 +744,9 @@ function drawNode(n, into){
   const r = nodeRect(n), T = TYPES[n.type] || TYPES.action;
   const g = el("g", {"data-node": n.id, style:"cursor:move"});
   const on = sel.has(n.id);
+  // Screen-only: the unit filter fades what it isn't showing rather than
+  // hiding it, so the shape of the plan stays readable. Exports never fade.
+  if(filterLive && unitFilter && n.unit !== unitFilter) g.setAttribute("opacity", "0.2");
   g.appendChild(el("rect", {
     x:r.x, y:r.y, width:r.w, height:r.h, rx:8, ry:8,
     fill:T.fill, stroke:on ? "#2563eb" : T.stroke,
@@ -736,6 +764,17 @@ function drawNode(n, into){
       const t = el("text", {x:r.x + PAD, y:ty + B_SIZE - 3, "font-family":FONT,
         "font-size":B_SIZE, fill:"#3f4b5e"});
       t.textContent = line; g.appendChild(t); ty += B_LH;
+    });
+  }
+  if(r.L.unitLines.length){
+    ty += 3;
+    g.appendChild(el("line", {x1:r.x + PAD, y1:ty, x2:r.x + r.w - PAD, y2:ty,
+      stroke:T.stroke, "stroke-width":1, opacity:.35}));
+    ty += 4;
+    r.L.unitLines.forEach(line => {
+      const t = el("text", {x:r.x + PAD, y:ty + U_SIZE - 2, "font-family":FONT,
+        "font-size":U_SIZE, "font-weight":600, fill:T.stroke});
+      t.textContent = line; g.appendChild(t); ty += U_LH;
     });
   }
   into.appendChild(g);
@@ -778,7 +817,7 @@ function renderBoard(){
     }
   });
   C.nodes.forEach(n => drawNode(n, gNodes));
-  if(pane === "swim") renderAssign();
+  renderInspect();
   applyView();
 }
 function midOf(d){
@@ -848,7 +887,7 @@ function renderToolbar(){
   });
 }
 function renderAll(){
-  renderRail(); renderNotes(); renderToolbar(); renderSlbar(); renderBoard();
+  renderRail(); renderNotes(); renderToolbar(); renderSlbar(); renderUnitControls(); renderBoard();
   if(pane === "compare") renderCompare();
 }
 
@@ -892,24 +931,72 @@ function renderSlbar(){
   chipRow(document.getElementById("laneChips"), C.lanes, "lane");
   document.getElementById("swimArrows").checked = state.swimArrows !== false;
 }
-function renderAssign(){
-  const box = document.getElementById("assignBox");
-  if(sel.size !== 1){ box.innerHTML = ""; return; }
-  const n = nodeById([...sel][0]);
-  if(!n){ box.innerHTML = ""; return; }
+/* ---------------- units / the selected box ---------------- */
+let unitFilter = "";      // "" = show everything
+let filterLive = true;    // off while exporting, so nothing prints faded
+let inspectFor = null;    // node the inspector is currently built for
+
+/* Units are free text with project-wide autocomplete rather than a managed
+   roster: quicker to type, and the list of real units falls out of use. */
+function unitsInUse(){
+  const set = new Set();
+  state.coas.forEach(c => c.nodes.forEach(n => { if(n.unit) set.add(n.unit); }));
+  return [...set].sort((a, b) => a.localeCompare(b));
+}
+function renderUnitControls(){
+  const units = unitsInUse();
+  document.getElementById("unitList").innerHTML =
+    units.map(u => `<option value="${esc(u)}"></option>`).join("");
+  const f = document.getElementById("unitFilter");
+  if(unitFilter && units.indexOf(unitFilter) < 0) unitFilter = "";   // unit was renamed away
+  f.style.display = units.length ? "" : "none";
+  f.innerHTML = `<option value="">All units</option>` +
+    units.map(u => `<option value="${esc(u)}"${u === unitFilter ? " selected" : ""}>${esc(u)}</option>`).join("");
+  f.classList.toggle("active", !!unitFilter);
+}
+function renderInspect(){
+  const box = document.getElementById("inspect");
+  const hint = document.getElementById("hint");
+  const n = sel.size === 1 ? nodeById([...sel][0]) : null;
+  if(!n){
+    box.classList.remove("on"); box.innerHTML = ""; inspectFor = null;
+    hint.style.display = pane === "compare" ? "none" : "";
+    return;
+  }
+  hint.style.display = "none";
+  box.classList.add("on");
+  // Rebuilding while the field has focus would drop the caret mid-word, so
+  // only rebuild when the selection actually changes.
+  if(inspectFor === n.id) return;
+  inspectFor = n.id;
+
   const C = coa();
   const opts = (list, cur) => `<option value="">— unassigned —</option>` +
     list.map(o => `<option value="${o.id}"${o.id === cur ? " selected" : ""}>${esc(o.name)}</option>`).join("");
-  box.innerHTML = `<span>Selected:</span>
-    <select id="asgPhase">${opts(C.phases, n.phase)}</select>
-    <select id="asgLane">${opts(C.lanes, n.lane)}</select>`;
-  box.querySelector("#asgPhase").onchange = e => {
-    snapshot(); n.phase = e.target.value || null; save(); renderBoard();
-  };
-  box.querySelector("#asgLane").onchange = e => {
-    snapshot(); n.lane = e.target.value || null; save(); renderBoard();
-  };
+  let h = `<span class="lb">Unit / task</span>
+    <input id="inUnit" list="unitList" placeholder="e.g. A/1-5 IN" value="${esc(n.unit)}">`;
+  if(mode === "swim"){
+    h += `<span class="lb">Phase</span><select id="inPhase">${opts(C.phases, n.phase)}</select>
+          <span class="lb">Lane</span><select id="inLane">${opts(C.lanes, n.lane)}</select>`;
+  }
+  box.innerHTML = h;
+
+  const inp = box.querySelector("#inUnit");
+  // Snapshot once when editing starts, not per keystroke: one undo step for
+  // the whole edit, taken before any of it was applied.
+  inp.addEventListener("focus", () => snapshot());
+  inp.addEventListener("input", e => { n.unit = e.target.value; renderBoard(); save(); });
+  inp.addEventListener("change", renderUnitControls);   // pick up a new unit once committed
+  const sw = box.querySelector("#inPhase");
+  if(sw){
+    sw.onchange = e => { snapshot(); n.phase = e.target.value || null; save(); renderBoard(); };
+    box.querySelector("#inLane").onchange =
+      e => { snapshot(); n.lane = e.target.value || null; save(); renderBoard(); };
+  }
 }
+document.getElementById("unitFilter").onchange = e => {
+  unitFilter = e.target.value; renderUnitControls(); renderBoard();
+};
 document.getElementById("addPhase").onclick = () => {
   snapshot(); coa().phases.push({id:uid(), name:"Phase " + (coa().phases.length + 1)});
   save(); renderAll(); fit();
@@ -1390,9 +1477,13 @@ function parseOutline(text){
 
     if(!cur) startSection("");
     const indent = line.match(/^ */)[0].length;      // measured before markers are stripped
-    let t = line.trim().replace(BULLET, ""), body = "", type = "action";
+    let t = line.trim().replace(BULLET, ""), body = "", type = "action", unit = "";
 
     if(/^!/.test(t)){ type = "risk"; t = t.replace(/^!\s*/, ""); }
+    // Pull @unit off the end before anything else looks at the tail, so a
+    // decision still reads as one: "Consolidate on OBJ? @B/2-7".
+    const at = t.match(/\s+@([^@]+)$/);
+    if(at){ unit = at[1].trim(); t = t.slice(0, at.index); }
     const split = t.split(/\s*::\s*/);
     if(split.length > 1){ t = split[0]; body = split.slice(1).join(" :: "); }
     t = t.trim();
@@ -1401,7 +1492,7 @@ function parseOutline(text){
     while(stack.length && stack[stack.length - 1].indent >= indent) stack.pop();
     const parent = stack.length ? stack[stack.length - 1].idx : null;
     stack.push({indent, idx:cur.items.length});
-    cur.items.push({title:t || "Untitled", body:body.trim(), type, parent});
+    cur.items.push({title:t || "Untitled", body:body.trim(), type, unit, parent});
   });
   return sections.filter(s => s.items.length);
 }
@@ -1410,7 +1501,7 @@ function itemsIntoCoa(C, items){
   const ids = items.map(() => uid());
   items.forEach((it, i) => {
     const n = mkNode(0, 0, it.title, it.body, it.type);
-    n.id = ids[i];
+    n.id = ids[i]; n.unit = it.unit || "";
     C.nodes.push(n);
     if(it.parent != null) C.edges.push({id:uid(), from:ids[it.parent], to:ids[i], label:""});
   });
@@ -1640,8 +1731,8 @@ function buildStandaloneSvg(scale, opts){
   const defs = document.createElementNS(NS, "defs");
   defs.innerHTML = '<marker id="' + mk + '" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#64748b"/></marker>';
   out.appendChild(defs);
-  const saveSel = new Set(sel), saveEdge = selEdge;
-  sel = new Set(); selEdge = null;
+  const saveSel = new Set(sel), saveEdge = selEdge, saveFilter = filterLive;
+  sel = new Set(); selEdge = null; filterLive = false;
   const fLayer = el("g"), eLayer = el("g"), nLayer = el("g"), oSave = gOver;
   gOver = el("g");                       // swallow handles
   const C = coa();
@@ -1660,7 +1751,7 @@ function buildStandaloneSvg(scale, opts){
     }
   });
   C.nodes.forEach(n => drawNode(n, nLayer));
-  gOver = oSave; sel = saveSel; selEdge = saveEdge;
+  gOver = oSave; sel = saveSel; selEdge = saveEdge; filterLive = saveFilter;
   out.append(fLayer, eLayer, nLayer);
   if(!opts.noTitle){                 // the brief has its own headings
     const ttl = el("text", {x:b.x - m + 14, y:b.y - m + 20, "font-family":FONT,
@@ -1719,7 +1810,7 @@ const NOTE_BLOCKS = [
 
 function renderBrief(){
   const on = id => document.getElementById(id).checked;
-  const o = {all:on("bAll"), chart:on("bChart"), swim:on("bSwim"),
+  const o = {all:on("bAll"), chart:on("bChart"), swim:on("bSwim"), tasks:on("bTasks"),
              notes:on("bNotes"), cmp:on("bCmp"), land:on("bLand")};
   document.getElementById("briefPage").textContent =
     "@page{size:" + (o.land ? "landscape" : "portrait") + ";margin:" + (o.land ? "12mm" : "14mm") + "}";
@@ -1751,6 +1842,34 @@ function renderBrief(){
       const e = document.createElement("p");
       e.className = "empty"; e.textContent = "No boxes laid out for this COA yet.";
       sec.appendChild(e);
+    }
+    if(o.tasks){
+      const tasked = c.nodes.filter(n => n.unit);
+      if(tasked.length){
+        const phaseName = id => (c.phases.find(p => p.id === id) || {}).name || "—";
+        const laneName  = id => (c.lanes.find(l => l.id === id) || {}).name || "—";
+        const byUnit = new Map();
+        tasked.forEach(n => {
+          if(!byUnit.has(n.unit)) byUnit.set(n.unit, []);
+          byUnit.get(n.unit).push(n);
+        });
+        let h = "<h3>Task organization</h3><table class='bm'><thead><tr>" +
+                "<th>Unit</th><th>Task</th><th>Phase</th><th>Lane</th></tr></thead><tbody>";
+        [...byUnit.keys()].sort((a, b) => a.localeCompare(b)).forEach(u => {
+          byUnit.get(u).forEach((n, i) => {
+            h += "<tr><td>" + (i ? "" : "<strong>" + esc(u) + "</strong>") + "</td>" +
+                 "<td>" + esc(n.title) + "</td><td>" + esc(phaseName(n.phase)) +
+                 "</td><td>" + esc(laneName(n.lane)) + "</td></tr>";
+          });
+        });
+        h += "</tbody></table>";
+        const unassigned = c.nodes.length - tasked.length;
+        if(unassigned) h += "<p class='lead'>" + unassigned +
+          (unassigned === 1 ? " box has" : " boxes have") + " no unit assigned.</p>";
+        const d = document.createElement("div");
+        d.innerHTML = h;
+        sec.appendChild(d);
+      }
     }
     if(o.notes){
       const filled = NOTE_BLOCKS.filter(b => (c.notes[b.k] || "").trim());
@@ -1811,7 +1930,7 @@ function closeBrief(){
 document.getElementById("btnBrief").onclick = openBrief;
 document.getElementById("briefClose").onclick = closeBrief;
 document.getElementById("briefPrint").onclick = () => window.print();
-["bAll","bChart","bSwim","bNotes","bCmp","bLand"].forEach(id => {
+["bAll","bChart","bSwim","bTasks","bNotes","bCmp","bLand"].forEach(id => {
   document.getElementById(id).addEventListener("change", renderBrief);
 });
 
