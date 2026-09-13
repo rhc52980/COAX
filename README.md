@@ -120,7 +120,9 @@ The context menu changes with what is under the pointer.
 **On a box** — edit its text, add a child, duplicate it, change its type from a
 row of swatches, or delete it. Right-clicking a box that isn't selected selects
 it first; with several selected the menu says so (`Delete 3 boxes`) and acts on
-all of them.
+all of them. With two or more selected (in Chart view) you also get **Align**
+— left / center / right, top / middle / bottom — and, with three or more,
+**Distribute horizontally / vertically** to space them evenly.
 
 **On an arrow** — label it, **reverse its direction**, or delete it.
 
@@ -133,6 +135,27 @@ duplicate current, and paste outline.
 
 Every item shows its keyboard equivalent where it has one, and menu and
 shortcut run the same code, so neither can drift from the other.
+
+## Keeping it tidy
+
+**Tidy** rebuilds the whole chart as a tree from scratch. For smaller touch-ups
+— a rough layout from pasting an outline, or boxes dropped from the palette —
+two lighter tools:
+
+- **Align / Distribute**, above, from the right-click menu on a multi-box
+  selection.
+- **Live alignment guides.** Drag a box near another box's edge or center and
+  a dashed guide line appears the moment they line up, snapping the box to it
+  exactly. Works on any selection size, checks both axes independently, and
+  only engages within a few screen pixels — it won't fight you across the
+  board.
+
+## Multiple arrows from one box
+
+Drag more than one connection off the same side of a box and they fan out
+across it automatically, ordered by where each one is headed, rather than
+piling up on the exact same point. A side with only one connection is
+unaffected — same center point as always.
 
 ## Who does what
 

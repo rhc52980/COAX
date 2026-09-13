@@ -213,6 +213,12 @@
   .ctxTypes{display:flex; gap:4px; padding:1px 7px 6px}
   .ctxTypes .swatch{width:24px; height:24px; cursor:pointer}
   .ctxTypes .swatch:hover{box-shadow:0 0 0 2px var(--accent)}
+  .ctxAlign{display:flex; gap:4px; padding:1px 7px 6px}
+  .ctxAlign button{
+    width:26px; height:24px; border-radius:6px; border:1px solid var(--line);
+    background:var(--panel2); color:var(--text); font-size:11px; cursor:pointer;
+  }
+  .ctxAlign button:hover{border-color:var(--accent); box-shadow:0 0 0 2px var(--accent)}
 
   /* ---- paste-outline modal ---- */
   #scrim{
@@ -1232,6 +1238,60 @@ svg.addEventListener("pointerdown", ev => {
   svg.classList.add("panning");
 });
 
+/* ---------------- alignment guides while dragging ---------------- */
+/* Chart mode only — swim positions come from the cell, not the drag. Finds
+   the closest edge/center match, on each axis independently, between the
+   moving selection's bounding box and every other box in the COA, snaps to
+   it if within a screen-pixel threshold, and returns a guide line to draw. */
+const SNAP_PX = 6;
+function computeSnap(orig, dx, dy){
+  const th = SNAP_PX / view.z;
+  const movingIds = new Set(orig.map(o => o.id));
+  let mx1 = Infinity, my1 = Infinity, mx2 = -Infinity, my2 = -Infinity;
+  orig.forEach(o => {
+    const n = nodeById(o.id); if(!n) return;
+    const r = nodeRect(n), x = o.x + dx, y = o.y + dy;   // r.w/h only — x/y come from the drag, not the stale node
+    mx1 = Math.min(mx1, x); my1 = Math.min(my1, y);
+    mx2 = Math.max(mx2, x + r.w); my2 = Math.max(my2, y + r.h);
+  });
+  if(mx1 === Infinity) return {dx:0, dy:0, guideX:false, guideY:false, lines:[]};
+  const xs = [mx1, (mx1 + mx2) / 2, mx2], ys = [my1, (my1 + my2) / 2, my2];
+
+  let bestX = null, bestY = null;
+  coa().nodes.forEach(n => {
+    if(movingIds.has(n.id)) return;
+    const r = nodeRect(n);
+    const ox = [r.x, r.x + r.w/2, r.x + r.w], oy = [r.y, r.y + r.h/2, r.y + r.h];
+    xs.forEach(mv => ox.forEach(ov => {
+      const diff = Math.abs(mv - ov);
+      if(diff <= th && (!bestX || diff < bestX.diff)) bestX = {diff, delta:ov - mv, at:ov, other:r};
+    }));
+    ys.forEach(mv => oy.forEach(ov => {
+      const diff = Math.abs(mv - ov);
+      if(diff <= th && (!bestY || diff < bestY.diff)) bestY = {diff, delta:ov - mv, at:ov, other:r};
+    }));
+  });
+
+  const lines = [];
+  if(bestX){
+    const y1 = Math.min(my1, bestX.other.y) - 24, y2 = Math.max(my2, bestX.other.y + bestX.other.h) + 24;
+    lines.push({x1:bestX.at, y1, x2:bestX.at, y2});
+  }
+  if(bestY){
+    const x1 = Math.min(mx1, bestY.other.x) - 24, x2 = Math.max(mx2, bestY.other.x + bestY.other.w) + 24;
+    lines.push({x1, y1:bestY.at, x2, y2:bestY.at});
+  }
+  return {dx: bestX ? bestX.delta : 0, dy: bestY ? bestY.delta : 0,
+          guideX: !!bestX, guideY: !!bestY, lines};
+}
+function drawGuides(lines){
+  clearGuides();
+  lines.forEach(l => gOver.appendChild(el("line", {x1:l.x1, y1:l.y1, x2:l.x2, y2:l.y2,
+    stroke:"#ec4899", "stroke-width":1.5, "stroke-dasharray":"4 3",
+    "pointer-events":"none", "data-guide":"1"})));
+}
+function clearGuides(){ gOver.querySelectorAll("[data-guide]").forEach(e => e.remove()); }
+
 svg.addEventListener("pointermove", ev => {
   if(!drag) return;
   if(drag.mode === "pan"){
@@ -1242,12 +1302,19 @@ svg.addEventListener("pointermove", ev => {
   const p = toWorld(ev.clientX, ev.clientY);
   if(drag.mode === "move"){
     if(!drag.moved){ snapshot(); drag.moved = true; }
-    const dx = p.x - drag.x0, dy = p.y - drag.y0;
+    let dx = p.x - drag.x0, dy = p.y - drag.y0;
+    const g = computeSnap(drag.orig, dx, dy);
+    dx += g.dx; dy += g.dy;
     drag.orig.forEach(o => {
       const n = nodeById(o.id); if(!n) return;
-      n.x = snap(o.x + dx); n.y = snap(o.y + dy);
+      // A guide match is already exact — grid-snapping it too would nudge
+      // it back off alignment on axes where the target isn't on the grid.
+      n.x = g.guideX ? (o.x + dx) : snap(o.x + dx);
+      n.y = g.guideY ? (o.y + dy) : snap(o.y + dy);
     });
-    renderBoard(); return;
+    renderBoard();
+    if(g.lines.length) drawGuides(g.lines);
+    return;
   }
   if(drag.mode === "swimmove"){
     drag.moved = true;
@@ -1270,6 +1337,7 @@ svg.addEventListener("pointermove", ev => {
 
 svg.addEventListener("pointerup", ev => {
   svg.classList.remove("panning");
+  clearGuides();
   if(!drag) return;
   if(drag.mode === "link"){
     const tmp = document.getElementById("tmpLink"); if(tmp) tmp.remove();
@@ -1444,6 +1512,55 @@ function deleteSelection(){
   }
   inspectFor = null; renderBoard(); save();
 }
+
+/* ---------------- align / distribute ---------------- */
+/* Chart mode only — a rough layout (pasted, dropped from the palette,
+   dragged by hand) rarely lines up on its own; this is the one-click
+   cleanup pass rather than the live guides above, which only catch it
+   as you drag one box past another. */
+function selectedNodes(){ return [...sel].map(nodeById).filter(Boolean); }
+function alignSelection(kind){
+  const ns = selectedNodes();
+  if(ns.length < 2 || mode === "swim") return;
+  snapshot();
+  const rows = ns.map(n => ({n, r: nodeRect(n)}));
+  if(kind === "left"){
+    const x = Math.min(...rows.map(o => o.r.x));
+    rows.forEach(o => o.n.x = snap(x));
+  }else if(kind === "right"){
+    const x2 = Math.max(...rows.map(o => o.r.x + o.r.w));
+    rows.forEach(o => o.n.x = snap(x2 - o.r.w));
+  }else if(kind === "hcenter"){
+    const cx = rows.reduce((s, o) => s + o.r.x + o.r.w/2, 0) / rows.length;
+    rows.forEach(o => o.n.x = snap(cx - o.r.w/2));
+  }else if(kind === "top"){
+    const y = Math.min(...rows.map(o => o.r.y));
+    rows.forEach(o => o.n.y = snap(y));
+  }else if(kind === "bottom"){
+    const y2 = Math.max(...rows.map(o => o.r.y + o.r.h));
+    rows.forEach(o => o.n.y = snap(y2 - o.r.h));
+  }else if(kind === "vcenter"){
+    const cy = rows.reduce((s, o) => s + o.r.y + o.r.h/2, 0) / rows.length;
+    rows.forEach(o => o.n.y = snap(cy - o.r.h/2));
+  }
+  renderBoard(); save();
+}
+function distributeSelection(axis){
+  const ns = selectedNodes();
+  if(ns.length < 3 || mode === "swim") return;
+  snapshot();
+  const rows = ns.map(n => ({n, r: nodeRect(n)}));
+  const dim = axis === "h" ? "w" : "h", pos = axis === "h" ? "x" : "y";
+  rows.sort((a, b) => a.r[pos] - b.r[pos]);
+  const first = rows[0], last = rows[rows.length - 1];
+  const span = (last.r[pos] + last.r[dim]) - first.r[pos];
+  const total = rows.reduce((s, o) => s + o.r[dim], 0);
+  const gap = (span - total) / (rows.length - 1);
+  let cursor = first.r[pos];
+  rows.forEach(o => { o.n[pos] = snap(cursor); cursor += o.r[dim] + gap; });
+  renderBoard(); save();
+}
+
 function addChildOf(id){
   const p = nodeById(id); if(!p) return;
   snapshot();
@@ -2198,6 +2315,21 @@ function ctxTypeRow(fn){
   });
   return row;
 }
+const ALIGN_GLYPHS = [
+  ["left","L","Align left edges"], ["hcenter","C","Align centers (horizontal)"], ["right","R","Align right edges"],
+  ["top","T","Align top edges"], ["vcenter","M","Align middles (vertical)"], ["bottom","B","Align bottom edges"],
+];
+function ctxAlignRow(){
+  const row = document.createElement("div");
+  row.className = "ctxAlign";
+  ALIGN_GLYPHS.forEach(([kind, glyph, title]) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = glyph; b.title = title;
+    b.onclick = () => { hideCtx(); alignSelection(kind); };
+    row.appendChild(b);
+  });
+  return row;
+}
 function showCtxAt(cx, cy){
   ctxMenu.classList.add("on");
   ctxMenu.style.left = "0px"; ctxMenu.style.top = "0px";
@@ -2225,6 +2357,13 @@ svg.addEventListener("contextmenu", ev => {
       "Ctrl+D", duplicateSelection));
     ctxMenu.append(ctxSep(), ctxLabel(many ? "Set type of all" : "Type"),
       ctxTypeRow(setTypeOfSelection));
+    if(many && mode !== "swim"){
+      ctxMenu.append(ctxSep(), ctxLabel("Align"), ctxAlignRow());
+      if(sel.size > 2){
+        ctxMenu.append(ctxItem("Distribute horizontally", "", () => distributeSelection("h")));
+        ctxMenu.append(ctxItem("Distribute vertically", "", () => distributeSelection("v")));
+      }
+    }
     ctxMenu.append(ctxSep(), ctxItem(many ? `Delete ${sel.size} boxes` : "Delete box",
       "Del", deleteSelection, true));
   }else if(edgeId){
