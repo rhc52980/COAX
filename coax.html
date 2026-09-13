@@ -722,13 +722,16 @@ function applyView(){
   document.getElementById("zLbl").textContent = Math.round(view.z * 100) + "%";
 }
 
-/* anchor point on a rect side */
-function anchorPt(r, side){
+/* anchor point on a rect side. t (0-1) is where along the side — 0.5 is the
+   center, used by default and by the selection handles, which always stay
+   put so a drag always starts a fresh edge from a known spot. */
+function anchorPt(r, side, t){
+  if(t === undefined) t = 0.5;
   switch(side){
-    case "t": return {x:r.x + r.w/2, y:r.y,           dx:0,  dy:-1};
-    case "b": return {x:r.x + r.w/2, y:r.y + r.h,     dx:0,  dy:1};
-    case "l": return {x:r.x,         y:r.y + r.h/2,   dx:-1, dy:0};
-    default:  return {x:r.x + r.w,   y:r.y + r.h/2,   dx:1,  dy:0};
+    case "t": return {x:r.x + r.w*t, y:r.y,           dx:0,  dy:-1};
+    case "b": return {x:r.x + r.w*t, y:r.y + r.h,     dx:0,  dy:1};
+    case "l": return {x:r.x,         y:r.y + r.h*t,   dx:-1, dy:0};
+    default:  return {x:r.x + r.w,   y:r.y + r.h*t,   dx:1,  dy:0};
   }
 }
 function pickSides(a, b){
@@ -737,12 +740,54 @@ function pickSides(a, b){
   if(Math.abs(dy) >= Math.abs(dx)) return dy >= 0 ? ["b","t"] : ["t","b"];
   return dx >= 0 ? ["r","l"] : ["l","r"];
 }
-function edgePath(ra, rb){
-  const [sa, sb] = pickSides(ra, rb);
-  const p1 = anchorPt(ra, sa), p2 = anchorPt(rb, sb);
+function bezierBetween(p1, p2){
   const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
   const o = Math.max(24, Math.min(80, dist / 2));
   return `M${p1.x},${p1.y}C${p1.x + p1.dx*o},${p1.y + p1.dy*o} ${p2.x + p2.dx*o},${p2.y + p2.dy*o} ${p2.x},${p2.y}`;
+}
+function edgePath(ra, rb){
+  const [sa, sb] = pickSides(ra, rb);
+  return bezierBetween(anchorPt(ra, sa), anchorPt(rb, sb));
+}
+
+/* Several edges can leave or enter the same box side. Left at the default
+   center they'd all leave from the exact same pixel and read as one
+   overlapping stub, so any side used more than once gets its connections
+   spread evenly across it — ordered by where the OTHER end of each edge
+   actually sits, so the fan doesn't cross itself. A side used once is
+   untouched: same center point as always. Returns edge.id -> path d. */
+function computeEdgeLayout(C){
+  const byId = new Map(C.nodes.map(n => [n.id, n]));
+  const rows = [];
+  C.edges.forEach(e => {
+    const a = byId.get(e.from), b = byId.get(e.to);
+    if(!a || !b) return;
+    const ra = nodeRect(a), rb = nodeRect(b);
+    const [sa, sb] = pickSides(ra, rb);
+    rows.push({e, ra, rb, sa, sb, aT:0.5, bT:0.5});
+  });
+
+  const groups = new Map();               // "nodeId|side" -> entries sharing that side
+  const add = (key, entry) => { if(!groups.has(key)) groups.set(key, []); groups.get(key).push(entry); };
+  const along = (side, x, y) => (side === "t" || side === "b") ? x : y;
+  rows.forEach(row => {
+    const ac = {x: row.ra.x + row.ra.w/2, y: row.ra.y + row.ra.h/2};
+    const bc = {x: row.rb.x + row.rb.w/2, y: row.rb.y + row.rb.h/2};
+    add(row.e.from + "|" + row.sa, {row, end:"aT", pos: along(row.sa, bc.x, bc.y)});
+    add(row.e.to   + "|" + row.sb, {row, end:"bT", pos: along(row.sb, ac.x, ac.y)});
+  });
+  groups.forEach(list => {
+    if(list.length < 2) return;           // single connection: leave at center
+    list.sort((x, y) => x.pos - y.pos);
+    const lo = 0.22, hi = 0.78;
+    list.forEach((entry, i) => { entry.row[entry.end] = lo + (hi - lo) * i / (list.length - 1); });
+  });
+
+  const paths = new Map();
+  rows.forEach(row => {
+    paths.set(row.e.id, bezierBetween(anchorPt(row.ra, row.sa, row.aT), anchorPt(row.rb, row.sb, row.bT)));
+  });
+  return paths;
 }
 
 function paintFrame(into){
@@ -831,25 +876,27 @@ function renderBoard(){
   const C = coa();
   if(mode === "swim"){ computeSwim(); paintFrame(gFrame); }
   const showEdges = mode !== "swim" || state.swimArrows !== false;
-  if(showEdges) C.edges.forEach(e => {
-    const a = C.nodes.find(n => n.id === e.from), b = C.nodes.find(n => n.id === e.to);
-    if(!a || !b) return;
-    const d = edgePath(nodeRect(a), nodeRect(b));
-    const on = selEdge === e.id;
-    gEdges.appendChild(el("path", {d, fill:"none", stroke:on ? "#2563eb" : "#64748b",
-      "stroke-width":on ? 2.5 : 1.8, "marker-end": on ? "url(#arwS)" : "url(#arw)"}));
-    gEdges.appendChild(el("path", {d, fill:"none", stroke:"transparent", "stroke-width":14,
-      "data-edge":e.id, style:"cursor:pointer"}));
-    if(e.label){
-      const m = midOf(d);
-      const bgw = measure(e.label, 11, 400) + 8;
-      gEdges.appendChild(el("rect", {x:m.x - bgw/2, y:m.y - 8, width:bgw, height:16, rx:4,
-        fill:"#ffffff", stroke:"#e2e8f0"}));
-      const t = el("text", {x:m.x, y:m.y + 4, "font-family":FONT, "font-size":11,
-        fill:"#475569", "text-anchor":"middle", "data-edge":e.id, style:"cursor:pointer"});
-      t.textContent = e.label; gEdges.appendChild(t);
-    }
-  });
+  if(showEdges){
+    const paths = computeEdgeLayout(C);
+    C.edges.forEach(e => {
+      const d = paths.get(e.id);
+      if(!d) return;
+      const on = selEdge === e.id;
+      gEdges.appendChild(el("path", {d, fill:"none", stroke:on ? "#2563eb" : "#64748b",
+        "stroke-width":on ? 2.5 : 1.8, "marker-end": on ? "url(#arwS)" : "url(#arw)"}));
+      gEdges.appendChild(el("path", {d, fill:"none", stroke:"transparent", "stroke-width":14,
+        "data-edge":e.id, style:"cursor:pointer"}));
+      if(e.label){
+        const m = midOf(d);
+        const bgw = measure(e.label, 11, 400) + 8;
+        gEdges.appendChild(el("rect", {x:m.x - bgw/2, y:m.y - 8, width:bgw, height:16, rx:4,
+          fill:"#ffffff", stroke:"#e2e8f0"}));
+        const t = el("text", {x:m.x, y:m.y + 4, "font-family":FONT, "font-size":11,
+          fill:"#475569", "text-anchor":"middle", "data-edge":e.id, style:"cursor:pointer"});
+        t.textContent = e.label; gEdges.appendChild(t);
+      }
+    });
+  }
   C.nodes.forEach(n => drawNode(n, gNodes));
   renderInspect();
   applyView();
@@ -1918,18 +1965,20 @@ function buildStandaloneSvg(scale, opts){
   const C = coa();
   if(mode === "swim") paintFrame(fLayer);   // already computed above, before bbox
   const showEdges = mode !== "swim" || state.swimArrows !== false;
-  if(showEdges) C.edges.forEach(e => {
-    const a = C.nodes.find(n => n.id === e.from), z = C.nodes.find(n => n.id === e.to);
-    if(!a || !z) return;
-    const d = edgePath(nodeRect(a), nodeRect(z));
-    eLayer.appendChild(el("path", {d, fill:"none", stroke:"#64748b", "stroke-width":1.8, "marker-end":"url(#" + mk + ")"}));
-    if(e.label){
-      const mid = midOf(d), bw = measure(e.label, 11, 400) + 8;
-      eLayer.appendChild(el("rect", {x:mid.x - bw/2, y:mid.y - 8, width:bw, height:16, rx:4, fill:"#fff", stroke:"#e2e8f0"}));
-      const t = el("text", {x:mid.x, y:mid.y + 4, "font-family":FONT, "font-size":11, fill:"#475569", "text-anchor":"middle"});
-      t.textContent = e.label; eLayer.appendChild(t);
-    }
-  });
+  if(showEdges){
+    const paths = computeEdgeLayout(C);
+    C.edges.forEach(e => {
+      const d = paths.get(e.id);
+      if(!d) return;
+      eLayer.appendChild(el("path", {d, fill:"none", stroke:"#64748b", "stroke-width":1.8, "marker-end":"url(#" + mk + ")"}));
+      if(e.label){
+        const mid = midOf(d), bw = measure(e.label, 11, 400) + 8;
+        eLayer.appendChild(el("rect", {x:mid.x - bw/2, y:mid.y - 8, width:bw, height:16, rx:4, fill:"#fff", stroke:"#e2e8f0"}));
+        const t = el("text", {x:mid.x, y:mid.y + 4, "font-family":FONT, "font-size":11, fill:"#475569", "text-anchor":"middle"});
+        t.textContent = e.label; eLayer.appendChild(t);
+      }
+    });
+  }
   C.nodes.forEach(n => drawNode(n, nLayer));
   gOver = oSave; sel = saveSel; selEdge = saveEdge; filterLive = saveFilter;
   out.append(fLayer, eLayer, nLayer);
