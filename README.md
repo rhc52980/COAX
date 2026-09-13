@@ -40,8 +40,6 @@ A drag-and-drop board — org-chart / flowchart style.
 
 - **Drag a swatch** from the palette onto the board to place a box of that
   type. Drop it on an existing box instead to retype that one
-- **Double-click** empty board also makes a new box, of whichever type is
-  currently selected in the palette
 - **Double-click a box** to edit it. First line is the title, everything after
   is the body
 - **Drag a side dot** onto another box to draw an arrow
@@ -51,7 +49,8 @@ A drag-and-drop board — org-chart / flowchart style.
 
 Six box types — Action, Decision, Objective, Branch/Sequel, Risk, Note —
 distinguished by colour. Clicking a swatch sets the type of whatever is
-selected and the default for new boxes; dragging one places a box instead.
+selected, and the type `Tab` gives new children; dragging one places a box
+instead.
 
 ### Swim lanes
 
@@ -63,7 +62,6 @@ it against time and responsibility.
   inside the cell sets its order
 - **Drag a swatch** straight into a cell to create a box already assigned
   there; the target cell highlights as you drag over it
-- **Double-click an empty cell** for a new box already assigned there
 - **Tab** creates the next step in the *next phase, same lane*
 - Unassigned boxes collect in an Unassigned row/column that only appears when
   something needs it — nothing ever goes missing

@@ -410,7 +410,7 @@
     </div>
     <div id="inspect"></div>
     <datalist id="unitList"></datalist>
-    <div id="hint">Double-click board = new box &middot; Drag a side dot = arrow &middot; Tab on a selected box = child &middot; Del = delete &middot; Ctrl+Z = undo</div>
+    <div id="hint">Drag a swatch onto the board = new box &middot; Drag a side dot = arrow &middot; Tab on a selected box = child &middot; Del = delete &middot; Ctrl+Z = undo</div>
     <div id="compare"></div>
   </main>
 
@@ -964,7 +964,7 @@ function onSwatchUp(ev){
   }
   const p = toWorld(ev.clientX, ev.clientY);
   renderToolbar();
-  addBoxAt(p.x, p.y, d.kind, true);
+  addBoxAt(p.x, p.y, d.kind);
 }
 
 function renderAll(){
@@ -1100,8 +1100,8 @@ function setPane(v){
   document.querySelectorAll(".views button").forEach(b =>
     b.classList.toggle("on", b.dataset.view === v));
   document.getElementById("hint").textContent = v === "swim"
-    ? "Drag a box into a cell to set its phase and lane · Double-click a cell = new box · Del = delete"
-    : "Double-click board = new box · Drag a side dot = arrow · Tab on a selected box = child · Del = delete · Ctrl+Z = undo";
+    ? "Drag a swatch into a cell = new box there · Drag a box between cells to reassign it · Del = delete"
+    : "Drag a swatch onto the board = new box · Drag a side dot = arrow · Tab on a selected box = child · Del = delete · Ctrl+Z = undo";
   document.getElementById("hint").style.display = v === "compare" ? "none" : "";
   renderAll();
   if(v !== "compare") fit();
@@ -1279,12 +1279,12 @@ svg.addEventListener("dblclick", ev => {
     if(lb !== null){ snapshot(); e.label = lb.trim(); renderBoard(); save(); }
     return;
   }
-  const p = toWorld(ev.clientX, ev.clientY);
-  addBoxAt(p.x, p.y, curType, true);
+  // Empty board: nothing. Boxes are placed by dragging a swatch from the
+  // palette, so a stray double-click no longer leaves one behind.
 });
 
-/* Shared by double-click and by dropping a swatch from the palette. */
-function addBoxAt(wx, wy, type, thenEdit){
+/* Places a box centred on a world point and opens it for typing. */
+function addBoxAt(wx, wy, type){
   snapshot();
   const n = mkNode(snap(wx - NODE_W/2), snap(wy - 24), "New step", "", type);
   if(mode === "swim"){
@@ -1299,7 +1299,7 @@ function addBoxAt(wx, wy, type, thenEdit){
   sel.clear(); sel.add(n.id);
   inspectFor = null;
   renderBoard(); save();
-  if(thenEdit) editNode(n.id);
+  editNode(n.id);
   return n;
 }
 
