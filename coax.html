@@ -6,9 +6,63 @@
 <title>COAX — Course Of Action eXplorer</title>
 <style>
   :root{
+    /* light — the default; system dark and the manual toggle below override it */
+    --bg:#f4f6f9; --panel:#ffffff; --panel2:#eef1f5; --line:#d7dee6;
+    --text:#12181f; --dim:#5b6572; --accent:#2563eb; --danger:#dc2626;
+    --board:#ffffff; --board-2:#f8fafc; --grid:#eceff3; --edge:#64748b;
+    --box-text:#0f172a; --box-body:#3f4b5e; --handle-fill:#ffffff;
+    --hover:#e7ebf0; --danger-bg:#fde8e8; --danger-text:#b91c1c;
+    --accent-soft:#e3ecfc; --pro:#16a34a; --con:#dc2626;
+    --best-bg:#dcfce7; --best-text:#14532d;
+
+    --t-action-fill:#dbeafe;    --t-action-stroke:#2563eb;
+    --t-decision-fill:#fef3c7;  --t-decision-stroke:#d97706;
+    --t-objective-fill:#dcfce7; --t-objective-stroke:#16a34a;
+    --t-branch-fill:#ede9fe;    --t-branch-stroke:#7c3aed;
+    --t-risk-fill:#fee2e2;      --t-risk-stroke:#dc2626;
+    --t-note-fill:#f1f5f9;      --t-note-stroke:#64748b;
+    --t-role-fill:#ccfbf1;      --t-role-stroke:#0d9488;
+    --t-group-fill:#fce7f3;     --t-group-stroke:#db2777;
+  }
+  /* dark — the app's original look, now also reachable via system preference
+     or the manual toggle rather than being the only option */
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#11151c; --panel:#181d26; --panel2:#1f2632; --line:#2b3342;
+      --text:#e6ebf2; --dim:#93a0b4; --accent:#4c8dff; --danger:#ef4444;
+      --board:#10141a; --board-2:#161b23; --grid:#1b212b; --edge:#8794a5;
+      --box-text:#eef2f8; --box-body:#a8b3c4; --handle-fill:#181d26;
+      --hover:#28303e; --danger-bg:#43191c; --danger-text:#fecaca;
+      --accent-soft:#1d2b45; --pro:#4ade80; --con:#f87171;
+      --best-bg:#14402a; --best-text:#c9f7dc;
+
+      --t-action-fill:#16233b;    --t-action-stroke:#5b8dff;
+      --t-decision-fill:#3a2a0e;  --t-decision-stroke:#fbbf24;
+      --t-objective-fill:#12301f; --t-objective-stroke:#4ade80;
+      --t-branch-fill:#241b3d;    --t-branch-stroke:#a78bfa;
+      --t-risk-fill:#3a1518;      --t-risk-stroke:#f87171;
+      --t-note-fill:#1c222b;      --t-note-stroke:#94a3b8;
+      --t-role-fill:#0f2b28;      --t-role-stroke:#2dd4bf;
+      --t-group-fill:#33162a;     --t-group-stroke:#f472b6;
+    }
+  }
+  :root[data-theme="dark"]{
     --bg:#11151c; --panel:#181d26; --panel2:#1f2632; --line:#2b3342;
     --text:#e6ebf2; --dim:#93a0b4; --accent:#4c8dff; --danger:#ef4444;
-    --board:#ffffff;
+    --board:#10141a; --board-2:#161b23; --grid:#1b212b; --edge:#8794a5;
+    --box-text:#eef2f8; --box-body:#a8b3c4; --handle-fill:#181d26;
+    --hover:#28303e; --danger-bg:#43191c; --danger-text:#fecaca;
+    --accent-soft:#1d2b45; --pro:#4ade80; --con:#f87171;
+    --best-bg:#14402a; --best-text:#c9f7dc;
+
+    --t-action-fill:#16233b;    --t-action-stroke:#5b8dff;
+    --t-decision-fill:#3a2a0e;  --t-decision-stroke:#fbbf24;
+    --t-objective-fill:#12301f; --t-objective-stroke:#4ade80;
+    --t-branch-fill:#241b3d;    --t-branch-stroke:#a78bfa;
+    --t-risk-fill:#3a1518;      --t-risk-stroke:#f87171;
+    --t-note-fill:#1c222b;      --t-note-stroke:#94a3b8;
+    --t-role-fill:#0f2b28;      --t-role-stroke:#2dd4bf;
+    --t-group-fill:#33162a;     --t-group-stroke:#f472b6;
   }
   *{box-sizing:border-box}
   html{height:100%}
@@ -25,11 +79,11 @@
     background:var(--panel2); border:1px solid var(--line); color:var(--text);
     padding:5px 10px; border-radius:6px; cursor:pointer;
   }
-  button:hover{background:#28303e; border-color:#3c4759}
+  button:hover{background:var(--hover); border-color:var(--accent)}
   button.primary{background:var(--accent); border-color:var(--accent); color:#fff}
-  button.primary:hover{background:#3d7ae8}
+  button.primary:hover{filter:brightness(1.1)}
   button.ghost{background:transparent;border-color:transparent;color:var(--dim);padding:3px 6px}
-  button.ghost:hover{background:#28303e;color:var(--text)}
+  button.ghost:hover{background:var(--hover);color:var(--text)}
 
   body > header{
     display:flex; align-items:center; gap:8px; padding:8px 12px; flex-wrap:wrap;
@@ -66,9 +120,9 @@
   #slbar .chips{display:flex; gap:5px; flex-wrap:wrap}
   .chip{display:flex; align-items:center; background:var(--panel); border:1px solid var(--line); border-radius:6px}
   .chip input{background:transparent; border:none; padding:3px 4px; font-size:12.5px; min-width:30px}
-  .chip input:focus{outline:none; background:#101620}
+  .chip input:focus{outline:none; background:var(--panel2)}
   .chip button{border:none; background:transparent; color:var(--dim); padding:2px 4px; border-radius:0; font-size:11px}
-  .chip button:hover{background:#28303e; color:var(--text)}
+  .chip button:hover{background:var(--hover); color:var(--text)}
   .chip button.rm:hover{color:var(--danger)}
   #slbar .vsep{width:1px; height:20px; background:var(--line)}
   #slbar label.chk{display:flex; align-items:center; gap:5px; font-size:12.5px; color:var(--dim)}
@@ -88,7 +142,7 @@
     border-radius:6px; cursor:pointer; border:1px solid transparent;
   }
   .coaItem:hover{background:var(--panel2)}
-  .coaItem.active{background:#1d2b45; border-color:var(--accent)}
+  .coaItem.active{background:var(--accent-soft); border-color:var(--accent)}
   .coaItem .nm{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   .coaItem .acts{display:none; gap:2px}
   .coaItem:hover .acts{display:flex}
@@ -101,38 +155,38 @@
   #editor{
     position:absolute; display:none; z-index:5; resize:none; overflow:hidden;
     border:2px solid var(--accent); border-radius:8px; padding:8px 9px;
-    background:#fff; color:#0f172a; box-shadow:0 6px 24px rgba(0,0,0,.25);
+    background:var(--panel); color:var(--text); box-shadow:0 6px 24px rgba(0,0,0,.25);
     font:13px/1.3 "Segoe UI",Helvetica,Arial,sans-serif;
   }
   #editor:focus{outline:none}
 
   #toolbar{
     position:absolute; left:12px; top:12px; right:12px; z-index:4; display:flex; gap:6px;
-    flex-wrap:wrap; background:rgba(24,29,38,.94); border:1px solid var(--line);
+    flex-wrap:wrap; background:var(--panel); border:1px solid var(--line);
     border-radius:8px; padding:6px; width:fit-content;
   }
   .swatch{
     width:26px;height:26px;border-radius:6px;border:2px solid transparent;cursor:grab;
-    display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#0f172a;
+    display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--box-text);
     touch-action:none; user-select:none;
   }
   .swatch:active{cursor:grabbing}
   #swatchGhost{
     position:fixed; z-index:40; pointer-events:none; transform:translate(-50%,-22px);
     border:2px solid; border-radius:8px; padding:9px 10px;
-    font:600 13px "Segoe UI",Helvetica,Arial,sans-serif; color:#0f172a;
+    font:600 13px "Segoe UI",Helvetica,Arial,sans-serif; color:var(--box-text);
     box-shadow:0 8px 22px rgba(0,0,0,.35); opacity:.92;
   }
-  .swatch.on{border-color:#fff; box-shadow:0 0 0 2px var(--accent)}
+  .swatch.on{border-color:var(--accent); box-shadow:0 0 0 2px var(--accent)}
 
   #hint{
-    position:absolute; left:12px; bottom:10px; right:170px; z-index:3; color:#64748b;
+    position:absolute; left:12px; bottom:10px; right:170px; z-index:3; color:var(--dim);
     font-size:11.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    background:rgba(255,255,255,.85); padding:4px 8px; border-radius:6px; pointer-events:none;
+    background:var(--panel); opacity:.92; padding:4px 8px; border-radius:6px; pointer-events:none;
   }
   #zoombar{
     position:absolute; right:12px; bottom:10px; z-index:4; display:flex; gap:4px; align-items:center;
-    background:rgba(24,29,38,.94); border:1px solid var(--line); border-radius:8px; padding:4px 6px;
+    background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:4px 6px;
   }
   #zoombar span{font-size:12px;color:var(--dim);min-width:40px;text-align:center}
 
@@ -145,7 +199,7 @@
   table.mx th{background:var(--panel); font-size:12px; letter-spacing:.4px; text-transform:uppercase; color:var(--dim)}
   table.mx td.num{text-align:center; width:90px}
   table.mx tr.total td{background:var(--panel); font-weight:700}
-  table.mx tr.total td.best{background:#14402a; color:#c9f7dc}   /* must outrank tr.total td */
+  table.mx tr.total td.best{background:var(--best-bg); color:var(--best-text)}   /* must outrank tr.total td */
   .cell-in{width:100%; background:var(--panel2); border:1px solid var(--line); border-radius:5px; padding:4px 6px}
   .cell-in.num{text-align:center}
   .prosconsGrid{display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
@@ -166,14 +220,14 @@
     border:1px solid var(--line); border-radius:6px; padding:7px 8px; font-size:13px;
   }
   .nBlock textarea:focus{outline:none; border-color:var(--accent)}
-  .nBlock.pros textarea{border-left:3px solid #22c55e}
-  .nBlock.cons textarea{border-left:3px solid #ef4444}
+  .nBlock.pros textarea{border-left:3px solid var(--pro)}
+  .nBlock.cons textarea{border-left:3px solid var(--con)}
 
   /* ---- selected-box inspector ---- */
   #inspect{
     position:absolute; left:12px; right:12px; bottom:8px; z-index:4; display:none;
     align-items:center; gap:8px; flex-wrap:wrap;
-    background:rgba(24,29,38,.96); border:1px solid var(--line);
+    background:var(--panel); border:1px solid var(--line);
     border-radius:8px; padding:6px 10px;
   }
   #inspect.on{display:flex}
@@ -188,7 +242,7 @@
     background:var(--panel2); border:1px solid var(--line); border-radius:6px;
     padding:5px 7px; font-size:13px; max-width:190px;
   }
-  #unitFilter.active{border-color:var(--accent); color:#fff}
+  #unitFilter.active{border-color:var(--accent); color:var(--accent)}
 
   /* ---- right-click menu ---- */
   #ctxMenu{
@@ -202,9 +256,9 @@
     border:none; border-radius:6px; padding:6px 9px; font-size:13px; text-align:left;
     cursor:pointer; color:var(--text);
   }
-  .ctxItem:hover{background:#28303e}
+  .ctxItem:hover{background:var(--hover)}
   .ctxItem .k{margin-left:auto; color:var(--dim); font-size:11.5px}
-  .ctxItem.danger:hover{background:#43191c; color:#fecaca}
+  .ctxItem.danger:hover{background:var(--danger-bg); color:var(--danger-text)}
   .ctxSep{height:1px; background:var(--line); margin:5px 3px}
   .ctxLabel{
     font-size:10.5px; letter-spacing:.9px; text-transform:uppercase;
@@ -234,7 +288,7 @@
   #paste h2{margin:0; padding:14px 18px; font-size:15px; border-bottom:1px solid var(--line)}
   #paste .body{padding:14px 18px; overflow:auto}
   #pasteText{
-    width:100%; height:210px; resize:vertical; background:#0e131b; color:var(--text);
+    width:100%; height:210px; resize:vertical; background:var(--panel2); color:var(--text);
     border:1px solid var(--line); border-radius:8px; padding:10px 12px;
     font:13px/1.5 ui-monospace,Consolas,"Courier New",monospace; white-space:pre; overflow-wrap:normal;
   }
@@ -245,20 +299,20 @@
   }
   .legend code{
     background:var(--panel2); border:1px solid var(--line); border-radius:4px;
-    padding:1px 5px; color:#cbd5e1; font:12px ui-monospace,Consolas,monospace; white-space:nowrap;
+    padding:1px 5px; color:var(--text); font:12px ui-monospace,Consolas,monospace; white-space:nowrap;
   }
   .modes{display:flex; gap:6px; margin-top:14px; flex-wrap:wrap}
   .modes label{
     display:flex; align-items:center; gap:6px; padding:6px 10px; font-size:13px;
     background:var(--panel2); border:1px solid var(--line); border-radius:7px; cursor:pointer;
   }
-  .modes label:has(input:checked){border-color:var(--accent); background:#1d2b45}
+  .modes label:has(input:checked){border-color:var(--accent); background:var(--accent-soft)}
   #pasteFoot{
     display:flex; align-items:center; gap:10px; padding:12px 18px;
     border-top:1px solid var(--line);
   }
   #pasteCount{flex:1; font-size:12.5px; color:var(--dim)}
-  #pasteCount.bad{color:#fbbf24}
+  #pasteCount.bad{color:var(--t-decision-stroke)}
 
   /* ---- template library ---- */
   #tmplScrim{
@@ -288,7 +342,7 @@
   .tmplCard:hover{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent)}
   .tmplCard .nm{font-size:13.5px; font-weight:600}
   .tmplCard .ds{font-size:12px; color:var(--dim); line-height:1.4; flex:1}
-  .tmplCard .ct{font-size:11px; color:#93a0b4}
+  .tmplCard .ct{font-size:11px; color:var(--dim)}
 
   /* ---- briefing export ---- */
   #briefWrap{position:fixed; inset:0; z-index:30; background:#0b0e14; display:none; flex-direction:column}
@@ -302,7 +356,7 @@
     display:flex; align-items:center; gap:5px; font-size:13px; padding:4px 9px;
     background:var(--panel2); border:1px solid var(--line); border-radius:7px; cursor:pointer;
   }
-  #briefBar label:has(input:checked){border-color:var(--accent); background:#1d2b45; color:#fff}
+  #briefBar label:has(input:checked){border-color:var(--accent); background:var(--accent-soft); color:var(--text)}
   /* align-items:flex-start is load-bearing: the default `stretch` sizes the
      page to the scroller's height, so its white background stopped one
      viewport down and the rest of the brief sat on the dark backdrop. */
@@ -365,6 +419,15 @@
     body,#stage{background:#fff}
   }
 </style>
+<script>
+  // Anti-flash: apply a saved manual theme override before first paint, so a
+  // light-on-dark-system (or vice versa) choice doesn't flicker to the system
+  // default for a frame while the main script loads further down the page.
+  try{
+    var t0 = localStorage.getItem("coax-theme");
+    if(t0 === "light" || t0 === "dark") document.documentElement.setAttribute("data-theme", t0);
+  }catch(e){}
+</script>
 </head>
 <body>
 
@@ -393,6 +456,8 @@
   <button id="btnExport">Save file</button>
   <button id="btnImport">Open file</button>
   <input id="fileIn" type="file" accept=".json,application/json" style="display:none">
+  <span class="sep"></span>
+  <button id="btnTheme" class="ghost"></button>
 </header>
 
 <div id="ctxMenu" role="menu"></div>
@@ -500,6 +565,25 @@
 const NS = "http://www.w3.org/2000/svg";
 const FONT = '"Segoe UI",Helvetica,Arial,sans-serif';
 const KEY = "coax-v1", KEY_OLD = "coa-planner-v1";
+const THEME_KEY = "coax-theme";
+
+/* ---------------- theme ---------------- */
+let theme = "auto";
+try{ theme = localStorage.getItem(THEME_KEY) || "auto"; }catch(e){}
+function applyTheme(t){
+  if(t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+  else document.documentElement.removeAttribute("data-theme");
+  const btn = document.getElementById("btnTheme");
+  const label = t === "light" ? "Light" : t === "dark" ? "Dark" : "Auto";
+  btn.textContent = label;
+  btn.title = "Theme: " + label + " (follows system) — click to cycle Auto / Light / Dark";
+}
+document.getElementById("btnTheme").onclick = () => {
+  theme = theme === "auto" ? "light" : theme === "light" ? "dark" : "auto";
+  try{ localStorage.setItem(THEME_KEY, theme); }catch(e){}
+  applyTheme(theme);
+};
+applyTheme(theme);
 const GRID = 10, NODE_W = 190, PAD = 10;
 const T_SIZE = 13, T_LH = 17, B_SIZE = 12, B_LH = 16, U_SIZE = 11, U_LH = 14;
 /* swim-lane frame metrics (world units) */
@@ -739,16 +823,19 @@ function cellAt(wx, wy){
 /* ---------------- svg build ---------------- */
 const svg = document.getElementById("svg");
 let gRoot, gFrame, gEdges, gNodes, gOver;
+let exporting = false;   // true while buildStandaloneSvg runs: paintFrame/drawNode
+                          // are shared with the live board, but exports must stay
+                          // fixed light/white regardless of the app's theme
 function initSvg(){
   svg.innerHTML = "";
   const defs = document.createElementNS(NS, "defs");
   defs.innerHTML =
     '<pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">' +
-      '<path d="M24 0H0V24" fill="none" stroke="#eceff3" stroke-width="1"/></pattern>' +
+      '<path d="M24 0H0V24" fill="none" stroke="var(--grid)" stroke-width="1"/></pattern>' +
     '<marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">' +
-      '<path d="M0 0L10 5L0 10z" fill="#64748b"/></marker>' +
+      '<path d="M0 0L10 5L0 10z" fill="var(--edge)"/></marker>' +
     '<marker id="arwS" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">' +
-      '<path d="M0 0L10 5L0 10z" fill="#2563eb"/></marker>';
+      '<path d="M0 0L10 5L0 10z" fill="var(--accent)"/></marker>';
   svg.appendChild(defs);
   const bg = document.createElementNS(NS, "rect");
   bg.setAttribute("id", "bg");
@@ -845,30 +932,30 @@ function computeEdgeLayout(C){
 function paintFrame(into){
   if(mode !== "swim" || !slFrame) return;
   const {cols, rows, totalW, totalH} = slFrame;
-  into.appendChild(el("rect", {x:0, y:0, width:totalW, height:totalH, fill:"#ffffff"}));
+  into.appendChild(el("rect", {x:0, y:0, width:totalW, height:totalH, fill: exporting ? "#ffffff" : "var(--board)"}));
   rows.forEach((r, i) => {
     into.appendChild(el("rect", {x:0, y:r.y, width:totalW, height:r.h,
-      fill: i % 2 ? "#f8fafc" : "#ffffff"}));
-    into.appendChild(el("rect", {x:0, y:r.y, width:SL_GUT, height:r.h, fill:"#eef2f7"}));
+      fill: exporting ? (i % 2 ? "#f8fafc" : "#ffffff") : (i % 2 ? "var(--board-2)" : "var(--board)")}));
+    into.appendChild(el("rect", {x:0, y:r.y, width:SL_GUT, height:r.h, fill: exporting ? "#eef2f7" : "var(--panel2)"}));
     const lines = wrap(r.name, SL_GUT - 24, 12, 600);
     let ly = r.y + r.h/2 - (lines.length - 1) * 8;
     lines.forEach(line => {
       const t = el("text", {x:SL_GUT/2, y:ly + 4, "font-family":FONT, "font-size":12,
-        "font-weight":600, fill: r.id === "__u" ? "#94a3b8" : "#334155", "text-anchor":"middle"});
+        "font-weight":600, fill: exporting ? (r.id === "__u" ? "#94a3b8" : "#334155") : (r.id === "__u" ? "var(--dim)" : "var(--text)"), "text-anchor":"middle"});
       t.textContent = line; into.appendChild(t); ly += 16;
     });
-    into.appendChild(el("line", {x1:0, y1:r.y, x2:totalW, y2:r.y, stroke:"#cbd5e1", "stroke-width":1}));
+    into.appendChild(el("line", {x1:0, y1:r.y, x2:totalW, y2:r.y, stroke: exporting ? "#cbd5e1" : "var(--line)", "stroke-width":1}));
   });
-  into.appendChild(el("rect", {x:0, y:0, width:totalW, height:SL_HEAD, fill:"#e2e8f0"}));
+  into.appendChild(el("rect", {x:0, y:0, width:totalW, height:SL_HEAD, fill: exporting ? "#e2e8f0" : "var(--panel2)"}));
   cols.forEach(c => {
     const t = el("text", {x:c.x + c.w/2, y:SL_HEAD/2 + 4, "font-family":FONT, "font-size":12.5,
-      "font-weight":600, fill: c.id === "__u" ? "#94a3b8" : "#1e293b", "text-anchor":"middle"});
+      "font-weight":600, fill: exporting ? (c.id === "__u" ? "#94a3b8" : "#1e293b") : (c.id === "__u" ? "var(--dim)" : "var(--text)"), "text-anchor":"middle"});
     t.textContent = c.name; into.appendChild(t);
-    into.appendChild(el("line", {x1:c.x, y1:0, x2:c.x, y2:totalH, stroke:"#cbd5e1", "stroke-width":1}));
+    into.appendChild(el("line", {x1:c.x, y1:0, x2:c.x, y2:totalH, stroke: exporting ? "#cbd5e1" : "var(--line)", "stroke-width":1}));
   });
-  into.appendChild(el("line", {x1:0, y1:SL_HEAD, x2:totalW, y2:SL_HEAD, stroke:"#94a3b8", "stroke-width":1.5}));
+  into.appendChild(el("line", {x1:0, y1:SL_HEAD, x2:totalW, y2:SL_HEAD, stroke: exporting ? "#94a3b8" : "var(--dim)", "stroke-width":1.5}));
   into.appendChild(el("rect", {x:0, y:0, width:totalW, height:totalH, fill:"none",
-    stroke:"#94a3b8", "stroke-width":1.5}));
+    stroke: exporting ? "#94a3b8" : "var(--dim)", "stroke-width":1.5}));
 }
 
 function drawNode(n, into){
@@ -880,31 +967,32 @@ function drawNode(n, into){
   if(filterLive && unitFilter && n.unit !== unitFilter) g.setAttribute("opacity", "0.2");
   g.appendChild(el("rect", {
     x:r.x, y:r.y, width:r.w, height:r.h, rx:8, ry:8,
-    fill:T.fill, stroke:on ? "#2563eb" : T.stroke,
+    fill: exporting ? T.fill : `var(--t-${n.type}-fill)`,
+    stroke: on ? "var(--accent)" : (exporting ? T.stroke : `var(--t-${n.type}-stroke)`),
     "stroke-width": on ? 3 : 2
   }));
   let ty = r.y + PAD + T_SIZE;
   r.L.titleLines.forEach(line => {
     const t = el("text", {x:r.x + PAD, y:ty, "font-family":FONT, "font-size":T_SIZE,
-      "font-weight":600, fill:"#0f172a"});
+      "font-weight":600, fill: exporting ? "#0f172a" : "var(--box-text)"});
     t.textContent = line; g.appendChild(t); ty += T_LH;
   });
   if(r.L.bodyLines.length){
     ty += 4;
     r.L.bodyLines.forEach(line => {
       const t = el("text", {x:r.x + PAD, y:ty + B_SIZE - 3, "font-family":FONT,
-        "font-size":B_SIZE, fill:"#3f4b5e"});
+        "font-size":B_SIZE, fill: exporting ? "#3f4b5e" : "var(--box-body)"});
       t.textContent = line; g.appendChild(t); ty += B_LH;
     });
   }
   if(r.L.unitLines.length){
     ty += 3;
     g.appendChild(el("line", {x1:r.x + PAD, y1:ty, x2:r.x + r.w - PAD, y2:ty,
-      stroke:T.stroke, "stroke-width":1, opacity:.35}));
+      stroke: exporting ? T.stroke : `var(--t-${n.type}-stroke)`, "stroke-width":1, opacity:.35}));
     ty += 4;
     r.L.unitLines.forEach(line => {
       const t = el("text", {x:r.x + PAD, y:ty + U_SIZE - 2, "font-family":FONT,
-        "font-size":U_SIZE, "font-weight":600, fill:T.stroke});
+        "font-size":U_SIZE, "font-weight":600, fill: exporting ? T.stroke : `var(--t-${n.type}-stroke)`});
       t.textContent = line; g.appendChild(t); ty += U_LH;
     });
   }
@@ -912,13 +1000,13 @@ function drawNode(n, into){
   if(on){
     ["t","r","b","l"].forEach(side => {
       const p = anchorPt(r, side);
-      const c = el("circle", {cx:p.x, cy:p.y, r:5.5, fill:"#fff", stroke:"#2563eb",
+      const c = el("circle", {cx:p.x, cy:p.y, r:5.5, fill:"var(--handle-fill)", stroke:"var(--accent)",
         "stroke-width":2, "data-handle":n.id, "data-side":side, style:"cursor:crosshair"});
       gOver.appendChild(c);
     });
     if(mode !== "swim"){   // width is column-driven in swim mode
       gOver.appendChild(el("rect", {x:r.x + r.w - 6, y:r.y + r.h - 6, width:12, height:12, rx:3,
-        fill:"#2563eb", "data-resize":n.id, style:"cursor:ew-resize"}));
+        fill:"var(--accent)", "data-resize":n.id, style:"cursor:ew-resize"}));
     }
   }
 }
@@ -934,7 +1022,7 @@ function renderBoard(){
       const d = paths.get(e.id);
       if(!d) return;
       const on = selEdge === e.id;
-      gEdges.appendChild(el("path", {d, fill:"none", stroke:on ? "#2563eb" : "#64748b",
+      gEdges.appendChild(el("path", {d, fill:"none", stroke:on ? "var(--accent)" : "var(--edge)",
         "stroke-width":on ? 2.5 : 1.8, "marker-end": on ? "url(#arwS)" : "url(#arw)"}));
       gEdges.appendChild(el("path", {d, fill:"none", stroke:"transparent", "stroke-width":14,
         "data-edge":e.id, style:"cursor:pointer"}));
@@ -942,9 +1030,9 @@ function renderBoard(){
         const m = midOf(d);
         const bgw = measure(e.label, 11, 400) + 8;
         gEdges.appendChild(el("rect", {x:m.x - bgw/2, y:m.y - 8, width:bgw, height:16, rx:4,
-          fill:"#ffffff", stroke:"#e2e8f0"}));
+          fill:"var(--panel)", stroke:"var(--line)"}));
         const t = el("text", {x:m.x, y:m.y + 4, "font-family":FONT, "font-size":11,
-          fill:"#475569", "text-anchor":"middle", "data-edge":e.id, style:"cursor:pointer"});
+          fill:"var(--dim)", "text-anchor":"middle", "data-edge":e.id, style:"cursor:pointer"});
         t.textContent = e.label; gEdges.appendChild(t);
       }
     });
@@ -993,7 +1081,7 @@ function renderToolbar(){
     const d = document.createElement("div");
     d.className = "swatch" + (k === curType ? " on" : "");
     d.style.background = T.fill;
-    d.style.borderColor = k === curType ? "#fff" : T.stroke;
+    d.style.borderColor = k === curType ? "var(--accent)" : T.stroke;
     d.textContent = T.label;
     d.title = T.name + " — drag onto the board to place one, or click to set the\n" +
               "type of the selection and the default for new boxes";
@@ -1041,8 +1129,8 @@ function paintDropTarget(ev){
   const p = toWorld(ev.clientX, ev.clientY), cell = cellAt(p.x, p.y);
   if(!cell) return;
   gOver.appendChild(el("rect", {id:"dropCell", x:cell.col.x, y:cell.row.y,
-    width:cell.col.w, height:cell.row.h, fill:"#2563eb", opacity:.1,
-    stroke:"#2563eb", "stroke-width":2, "pointer-events":"none"}));
+    width:cell.col.w, height:cell.row.h, fill:"var(--accent)", opacity:.1,
+    stroke:"var(--accent)", "stroke-width":2, "pointer-events":"none"}));
 }
 const overBoard = ev => {
   const r = svg.getBoundingClientRect();
@@ -1248,7 +1336,7 @@ svg.addEventListener("pointerdown", ev => {
   if(hId){
     const p = toWorld(ev.clientX, ev.clientY);
     drag = {mode:"link", from:hId, x:p.x, y:p.y};
-    const tmp = el("path", {id:"tmpLink", fill:"none", stroke:"#2563eb",
+    const tmp = el("path", {id:"tmpLink", fill:"none", stroke:"var(--accent)",
       "stroke-width":2, "stroke-dasharray":"5 4"});
     gOver.appendChild(tmp);
     return;
@@ -2328,24 +2416,29 @@ function buildStandaloneSvg(scale, opts){
   sel = new Set(); selEdge = null; filterLive = false;
   const fLayer = el("g"), eLayer = el("g"), nLayer = el("g"), oSave = gOver;
   gOver = el("g");                       // swallow handles
-  const C = coa();
-  if(mode === "swim") paintFrame(fLayer);   // already computed above, before bbox
-  const showEdges = mode !== "swim" || state.swimArrows !== false;
-  if(showEdges){
-    const paths = computeEdgeLayout(C);
-    C.edges.forEach(e => {
-      const d = paths.get(e.id);
-      if(!d) return;
-      eLayer.appendChild(el("path", {d, fill:"none", stroke:"#64748b", "stroke-width":1.8, "marker-end":"url(#" + mk + ")"}));
-      if(e.label){
-        const mid = midOf(d), bw = measure(e.label, 11, 400) + 8;
-        eLayer.appendChild(el("rect", {x:mid.x - bw/2, y:mid.y - 8, width:bw, height:16, rx:4, fill:"#fff", stroke:"#e2e8f0"}));
-        const t = el("text", {x:mid.x, y:mid.y + 4, "font-family":FONT, "font-size":11, fill:"#475569", "text-anchor":"middle"});
-        t.textContent = e.label; eLayer.appendChild(t);
-      }
-    });
+  exporting = true;
+  try{
+    const C = coa();
+    if(mode === "swim") paintFrame(fLayer);   // already computed above, before bbox
+    const showEdges = mode !== "swim" || state.swimArrows !== false;
+    if(showEdges){
+      const paths = computeEdgeLayout(C);
+      C.edges.forEach(e => {
+        const d = paths.get(e.id);
+        if(!d) return;
+        eLayer.appendChild(el("path", {d, fill:"none", stroke:"#64748b", "stroke-width":1.8, "marker-end":"url(#" + mk + ")"}));
+        if(e.label){
+          const mid = midOf(d), bw = measure(e.label, 11, 400) + 8;
+          eLayer.appendChild(el("rect", {x:mid.x - bw/2, y:mid.y - 8, width:bw, height:16, rx:4, fill:"#fff", stroke:"#e2e8f0"}));
+          const t = el("text", {x:mid.x, y:mid.y + 4, "font-family":FONT, "font-size":11, fill:"#475569", "text-anchor":"middle"});
+          t.textContent = e.label; eLayer.appendChild(t);
+        }
+      });
+    }
+    C.nodes.forEach(n => drawNode(n, nLayer));
+  } finally {
+    exporting = false;
   }
-  C.nodes.forEach(n => drawNode(n, nLayer));
   gOver = oSave; sel = saveSel; selEdge = saveEdge; filterLive = saveFilter;
   out.append(fLayer, eLayer, nLayer);
   if(!opts.noTitle){                 // the brief has its own headings

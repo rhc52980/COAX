@@ -229,6 +229,17 @@ Because autosave is keyed to how the file is opened, moving `coax.html` to
 another folder or machine can leave the autosave behind. Use **Save file** to
 carry work across.
 
+## Dark mode
+
+COAX follows your system's light/dark setting by default. The button at the
+right of the header (labeled **Auto**, **Light** or **Dark**) cycles through a
+manual override if you want the app to ignore the system setting; your choice
+is remembered for next time.
+
+Exports are the one thing dark mode doesn't touch — PNG, SVG and the brief
+always render light, like paper, regardless of which theme the app itself is
+showing.
+
 ## The brief
 
 **Brief** assembles everything into one printable document and shows it as a
