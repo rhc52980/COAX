@@ -2431,7 +2431,11 @@ function renderBrief(){
       p.className = "concept"; p.textContent = c.notes.concept;
       sec.appendChild(p);
     }
-    const isStructure = c.nodes.some(n => n.type === "role" || n.type === "group");
+    // Majority, not "any" — a maneuver COA that names one commander as a
+    // Role box shouldn't get captioned as if the whole chart were a
+    // structure diagram.
+    const structCount = c.nodes.filter(n => n.type === "role" || n.type === "group").length;
+    const isStructure = structCount > c.nodes.length / 2;
     if(o.chart && c.nodes.length)
       sec.appendChild(figureFor(c, "chart", isStructure ? "Structure" : "Scheme of maneuver"));
     if(o.swim && c.nodes.length) sec.appendChild(figureFor(c, "swim", "Synchronization matrix"));
