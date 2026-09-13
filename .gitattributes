@@ -1,0 +1,15 @@
+# COAX is one HTML file edited on Windows and opened straight from disk, so
+# line endings never affect how it runs. They do affect diffs: without this,
+# Git stores CRLF and every checkout on another machine looks rewritten.
+# Normalize text to LF in the repository and let Git hand out whatever the
+# working copy wants.
+
+*.html      text eol=lf
+*.md        text eol=lf
+*.json      text eol=lf
+LICENSE     text eol=lf
+.gitignore  text eol=lf
+
+# Never convert.
+*.png       binary
+*.ico       binary

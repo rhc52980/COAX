@@ -1,0 +1,1391 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>COAX — Course Of Action eXplorer</title>
+<style>
+  :root{
+    --bg:#11151c; --panel:#181d26; --panel2:#1f2632; --line:#2b3342;
+    --text:#e6ebf2; --dim:#93a0b4; --accent:#4c8dff; --danger:#ef4444;
+    --board:#ffffff;
+  }
+  *{box-sizing:border-box}
+  html{height:100%}
+  body{
+    height:100%; margin:0; display:flex; flex-direction:column;
+    background:var(--bg); color:var(--text);
+    font:14px/1.45 "Segoe UI",Helvetica,Arial,sans-serif;
+    overflow:hidden;
+    -webkit-user-select:none; user-select:none;
+  }
+  input,textarea,#compare{-webkit-user-select:text; user-select:text}
+  button,input,textarea,select{font:inherit;color:inherit}
+  button{
+    background:var(--panel2); border:1px solid var(--line); color:var(--text);
+    padding:5px 10px; border-radius:6px; cursor:pointer;
+  }
+  button:hover{background:#28303e; border-color:#3c4759}
+  button.primary{background:var(--accent); border-color:var(--accent); color:#fff}
+  button.primary:hover{background:#3d7ae8}
+  button.ghost{background:transparent;border-color:transparent;color:var(--dim);padding:3px 6px}
+  button.ghost:hover{background:#28303e;color:var(--text)}
+
+  header{
+    display:flex; align-items:center; gap:8px; padding:8px 12px; flex-wrap:wrap;
+    background:var(--panel); border-bottom:1px solid var(--line); flex:0 0 auto;
+  }
+  header .brand{font-weight:700; letter-spacing:.4px; color:var(--accent); margin-right:4px}
+  #projTitle{
+    background:transparent; border:1px solid transparent; border-radius:6px;
+    padding:4px 8px; font-size:15px; font-weight:600; min-width:240px;
+  }
+  #projTitle:hover{border-color:var(--line)}
+  #projTitle:focus{border-color:var(--accent); outline:none; background:var(--panel2)}
+  header .sp{flex:1}
+  header>button{flex:0 0 auto; white-space:nowrap}
+  header .sep{width:1px;height:22px;background:var(--line);margin:0 2px}
+  #saveState{color:var(--dim);font-size:12px;min-width:70px;text-align:right}
+
+  #app{display:flex; flex:1 1 auto; min-height:0}
+
+  /* ---- view switcher ---- */
+  .views{display:flex; flex:0 0 auto; border:1px solid var(--line); border-radius:7px; overflow:hidden}
+  .views button{border:none; border-radius:0; background:transparent; padding:5px 11px; white-space:nowrap}
+  .views button+button{border-left:1px solid var(--line)}
+  .views button.on{background:var(--accent); color:#fff}
+
+  /* ---- swim-lane control strip ---- */
+  #slbar{
+    display:none; align-items:center; gap:10px; flex-wrap:wrap;
+    padding:7px 12px; background:var(--panel2); border-bottom:1px solid var(--line);
+  }
+  body.swim #slbar{display:flex}
+  #slbar .grp{display:flex; align-items:center; gap:5px}
+  #slbar .lb{font-size:11px; letter-spacing:.9px; text-transform:uppercase; color:var(--dim)}
+  #slbar .chips{display:flex; gap:5px; flex-wrap:wrap}
+  .chip{display:flex; align-items:center; background:var(--panel); border:1px solid var(--line); border-radius:6px}
+  .chip input{background:transparent; border:none; padding:3px 4px; font-size:12.5px; min-width:30px}
+  .chip input:focus{outline:none; background:#101620}
+  .chip button{border:none; background:transparent; color:var(--dim); padding:2px 4px; border-radius:0; font-size:11px}
+  .chip button:hover{background:#28303e; color:var(--text)}
+  .chip button.rm:hover{color:var(--danger)}
+  #slbar .vsep{width:1px; height:20px; background:var(--line)}
+  #slbar label.chk{display:flex; align-items:center; gap:5px; font-size:12.5px; color:var(--dim)}
+  #assignBox{display:flex; align-items:center; gap:5px; font-size:12.5px; color:var(--dim)}
+  #assignBox select{background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:3px 5px; font-size:12.5px}
+
+  /* ---- left rail ---- */
+  #rail{
+    width:210px; flex:0 0 210px; background:var(--panel);
+    border-right:1px solid var(--line); display:flex; flex-direction:column;
+  }
+  .railHead{
+    padding:10px 12px 6px; font-size:11px; letter-spacing:.9px;
+    text-transform:uppercase; color:var(--dim);
+  }
+  #coaList{flex:1; overflow:auto; padding:0 8px}
+  .coaItem{
+    display:flex; align-items:center; gap:6px; padding:7px 8px; margin-bottom:3px;
+    border-radius:6px; cursor:pointer; border:1px solid transparent;
+  }
+  .coaItem:hover{background:var(--panel2)}
+  .coaItem.active{background:#1d2b45; border-color:var(--accent)}
+  .coaItem .nm{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .coaItem .acts{display:none; gap:2px}
+  .coaItem:hover .acts{display:flex}
+  .railFoot{padding:8px; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:6px}
+
+  /* ---- stage ---- */
+  #stage{flex:1; position:relative; overflow:hidden; background:var(--board)}
+  #svg{position:absolute; inset:0; width:100%; height:100%; touch-action:none; cursor:default}
+  #svg.panning{cursor:grabbing}
+  #editor{
+    position:absolute; display:none; z-index:5; resize:none; overflow:hidden;
+    border:2px solid var(--accent); border-radius:8px; padding:8px 9px;
+    background:#fff; color:#0f172a; box-shadow:0 6px 24px rgba(0,0,0,.25);
+    font:13px/1.3 "Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  #editor:focus{outline:none}
+
+  #toolbar{
+    position:absolute; left:12px; top:12px; z-index:4; display:flex; gap:6px;
+    background:rgba(24,29,38,.94); border:1px solid var(--line);
+    border-radius:8px; padding:6px;
+  }
+  .swatch{
+    width:26px;height:26px;border-radius:6px;border:2px solid transparent;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#0f172a;
+  }
+  .swatch.on{border-color:#fff; box-shadow:0 0 0 2px var(--accent)}
+
+  #hint{
+    position:absolute; left:12px; bottom:10px; right:170px; z-index:3; color:#64748b;
+    font-size:11.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    background:rgba(255,255,255,.85); padding:4px 8px; border-radius:6px; pointer-events:none;
+  }
+  #zoombar{
+    position:absolute; right:12px; bottom:10px; z-index:4; display:flex; gap:4px; align-items:center;
+    background:rgba(24,29,38,.94); border:1px solid var(--line); border-radius:8px; padding:4px 6px;
+  }
+  #zoombar span{font-size:12px;color:var(--dim);min-width:40px;text-align:center}
+
+  /* ---- compare view ---- */
+  #compare{position:absolute; inset:0; z-index:6; background:var(--bg); overflow:auto; padding:20px 24px; display:none}
+  #compare h2{margin:0 0 4px; font-size:18px}
+  #compare p.sub{margin:0 0 18px; color:var(--dim); font-size:13px}
+  table.mx{border-collapse:collapse; width:100%; margin-bottom:24px}
+  table.mx th, table.mx td{border:1px solid var(--line); padding:7px 9px; text-align:left; vertical-align:top}
+  table.mx th{background:var(--panel); font-size:12px; letter-spacing:.4px; text-transform:uppercase; color:var(--dim)}
+  table.mx td.num{text-align:center; width:90px}
+  table.mx tr.total td{background:var(--panel); font-weight:700}
+  table.mx td.best{background:#14402a; color:#c9f7dc}
+  .cell-in{width:100%; background:var(--panel2); border:1px solid var(--line); border-radius:5px; padding:4px 6px}
+  .cell-in.num{text-align:center}
+  .prosconsGrid{display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+  .ccard{background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px}
+  .ccard h3{margin:0 0 8px; font-size:14px}
+  .ccard .lbl{font-size:11px; text-transform:uppercase; letter-spacing:.7px; color:var(--dim); margin-top:8px}
+  .ccard pre{white-space:pre-wrap; margin:2px 0 0; font:13px/1.4 "Segoe UI",Helvetica,Arial,sans-serif}
+
+  /* ---- notes ---- */
+  #notes{
+    width:290px; flex:0 0 290px; background:var(--panel); border-left:1px solid var(--line);
+    display:flex; flex-direction:column; overflow:auto;
+  }
+  .nBlock{padding:10px 12px; border-bottom:1px solid var(--line)}
+  .nBlock label{display:block; font-size:11px; letter-spacing:.9px; text-transform:uppercase; color:var(--dim); margin-bottom:5px}
+  .nBlock textarea{
+    width:100%; min-height:74px; resize:vertical; background:var(--panel2);
+    border:1px solid var(--line); border-radius:6px; padding:7px 8px; font-size:13px;
+  }
+  .nBlock textarea:focus{outline:none; border-color:var(--accent)}
+  .nBlock.pros textarea{border-left:3px solid #22c55e}
+  .nBlock.cons textarea{border-left:3px solid #ef4444}
+
+  @media print{
+    header,#rail,#notes,#toolbar,#zoombar,#hint,#slbar{display:none!important}
+    #app{height:auto}
+    #stage{position:static}
+    body,#stage{background:#fff}
+    #svg{position:static; width:100%; height:100vh}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="brand" title="Course Of Action eXplorer">COAX</span>
+  <input id="projTitle" placeholder="Operation name">
+  <span class="sep"></span>
+  <div class="views">
+    <button data-view="chart" class="on">Chart</button>
+    <button data-view="swim">Swim lanes</button>
+    <button data-view="compare">Compare</button>
+  </div>
+  <span class="sep"></span>
+  <button id="btnTidy" title="Auto-arrange the chart">Tidy</button>
+  <button id="btnFit" title="Fit to window">Fit</button>
+  <span class="sp"></span>
+  <span id="saveState"></span>
+  <span class="sep"></span>
+  <button id="btnPng">PNG</button>
+  <button id="btnSvg">SVG</button>
+  <button id="btnPrint">Print</button>
+  <span class="sep"></span>
+  <button id="btnExport">Save file</button>
+  <button id="btnImport">Open file</button>
+  <input id="fileIn" type="file" accept=".json,application/json" style="display:none">
+</header>
+
+<div id="slbar">
+  <div class="grp"><span class="lb">Phases</span><div class="chips" id="phaseChips"></div>
+    <button id="addPhase" title="Add a phase column">+</button></div>
+  <span class="vsep"></span>
+  <div class="grp"><span class="lb">Lanes</span><div class="chips" id="laneChips"></div>
+    <button id="addLane" title="Add a lane row">+</button></div>
+  <span class="vsep"></span>
+  <label class="chk"><input type="checkbox" id="swimArrows"> Arrows</label>
+  <span class="sp" style="flex:1"></span>
+  <div id="assignBox"></div>
+</div>
+
+<div id="app">
+  <aside id="rail">
+    <div class="railHead">Courses of Action</div>
+    <div id="coaList"></div>
+    <div class="railFoot">
+      <button id="btnNewCoa" class="primary">+ New COA</button>
+      <button id="btnDupCoa">Duplicate current</button>
+    </div>
+  </aside>
+
+  <main id="stage">
+    <svg id="svg"></svg>
+    <textarea id="editor" spellcheck="false"></textarea>
+    <div id="toolbar"></div>
+    <div id="zoombar">
+      <button class="ghost" id="zOut">&minus;</button><span id="zLbl">100%</span><button class="ghost" id="zIn">+</button>
+    </div>
+    <div id="hint">Double-click board = new box &middot; Drag a side dot = arrow &middot; Tab on a selected box = child &middot; Del = delete &middot; Ctrl+Z = undo</div>
+    <div id="compare"></div>
+  </main>
+
+  <aside id="notes">
+    <div class="nBlock"><label>Concept / Intent</label><textarea data-k="concept" placeholder="One-paragraph summary of how this COA works."></textarea></div>
+    <div class="nBlock pros"><label>Pros</label><textarea data-k="pros" placeholder="&bull; "></textarea></div>
+    <div class="nBlock cons"><label>Cons</label><textarea data-k="cons" placeholder="&bull; "></textarea></div>
+    <div class="nBlock"><label>Assumptions</label><textarea data-k="assumptions" placeholder="&bull; "></textarea></div>
+    <div class="nBlock"><label>Risks / Mitigation</label><textarea data-k="risks" placeholder="&bull; "></textarea></div>
+  </aside>
+</div>
+
+<script>
+"use strict";
+const NS = "http://www.w3.org/2000/svg";
+const FONT = '"Segoe UI",Helvetica,Arial,sans-serif';
+const KEY = "coax-v1", KEY_OLD = "coa-planner-v1";
+const GRID = 10, NODE_W = 190, PAD = 10;
+const T_SIZE = 13, T_LH = 17, B_SIZE = 12, B_LH = 16;
+/* swim-lane frame metrics (world units) */
+const SL_GUT = 140, SL_COLW = 250, SL_HEAD = 40, SL_PAD = 12, SL_GAP = 10, SL_ROWMIN = 92;
+
+const TYPES = {
+  action:    {label:"Act", name:"Action",    fill:"#dbeafe", stroke:"#2563eb"},
+  decision:  {label:"Dec", name:"Decision",  fill:"#fef3c7", stroke:"#d97706"},
+  objective: {label:"Obj", name:"Objective", fill:"#dcfce7", stroke:"#16a34a"},
+  branch:    {label:"Br",  name:"Branch / Sequel", fill:"#ede9fe", stroke:"#7c3aed"},
+  risk:      {label:"Rsk", name:"Risk",      fill:"#fee2e2", stroke:"#dc2626"},
+  note:      {label:"Nte", name:"Note",      fill:"#f1f5f9", stroke:"#64748b"},
+};
+
+/* ---------------- state ---------------- */
+let state = null;
+let view = {x:60, y:60, z:1};
+let sel = new Set();          // selected node ids
+let selEdge = null;
+let curType = "action";
+let undoStack = [], redoStack = [];
+let pane = "chart";           // which pane is showing: chart | swim | compare
+let mode = "chart";           // board geometry: chart | swim
+let slPos = new Map();        // nodeId -> {x,y,w,h,L} in swim mode
+let slFrame = null;           // {cols,rows,totalW,totalH}
+let ghost = null;             // {ids:Set, dx, dy} while dragging in swim mode
+
+const uid = () => Math.random().toString(36).slice(2, 9);
+
+function seed(){
+  const c1 = newCoa("COA 1 — Direct");
+  const a = mkNode(0, 0, "Start", "Trigger condition / current posture", "objective");
+  const b = mkNode(0, 120, "Move to LOA", "Main effort advances on axis BLUE", "action");
+  const d = mkNode(0, 250, "Objective secured?", "", "decision");
+  a.phase = c1.phases[0].id; a.lane = c1.lanes[0].id;
+  b.phase = c1.phases[1].id; b.lane = c1.lanes[0].id;
+  d.phase = c1.phases[2].id; d.lane = c1.lanes[0].id;
+  c1.nodes.push(a, b, d);
+  c1.edges.push({id:uid(), from:a.id, to:b.id, label:""}, {id:uid(), from:b.id, to:d.id, label:""});
+  c1.notes.concept = "Shortest path to the objective, accepting higher risk to force.";
+  return {
+    version: 1,
+    title: "Untitled Operation",
+    coas: [c1],
+    swimArrows: true,
+    criteria: [
+      {id:uid(), name:"Feasibility", weight:3},
+      {id:uid(), name:"Acceptability (risk)", weight:3},
+      {id:uid(), name:"Suitability", weight:2},
+      {id:uid(), name:"Simplicity", weight:1},
+      {id:uid(), name:"Speed", weight:2},
+    ],
+    active: c1.id,
+  };
+}
+function newCoa(name){
+  return {id:uid(), name, nodes:[], edges:[],
+    notes:{concept:"", pros:"", cons:"", assumptions:"", risks:""}, scores:{},
+    phases:[{id:uid(), name:"Phase I"}, {id:uid(), name:"Phase II"}, {id:uid(), name:"Phase III"}],
+    lanes:[{id:uid(), name:"Main Effort"}, {id:uid(), name:"Support"}, {id:uid(), name:"Sustainment"}]};
+}
+function mkNode(x, y, title, body, type){
+  return {id:uid(), x, y, w:NODE_W, title, body, type:type||"action",
+    phase:null, lane:null, ord:0};
+}
+/* older saves predate phases/lanes — backfill so they open cleanly */
+function normalizeCoa(c){
+  c.nodes = c.nodes || []; c.edges = c.edges || []; c.scores = c.scores || {};
+  c.notes = Object.assign({concept:"",pros:"",cons:"",assumptions:"",risks:""}, c.notes || {});
+  if(!Array.isArray(c.phases) || !c.phases.length)
+    c.phases = ["Phase I","Phase II","Phase III"].map(n => ({id:uid(), name:n}));
+  if(!Array.isArray(c.lanes) || !c.lanes.length)
+    c.lanes = ["Main Effort","Support","Sustainment"].map(n => ({id:uid(), name:n}));
+  c.nodes.forEach((n, i) => {
+    if(n.phase === undefined) n.phase = null;
+    if(n.lane === undefined) n.lane = null;
+    if(typeof n.ord !== "number") n.ord = i;
+  });
+  return c;
+}
+const coa = () => state.coas.find(c => c.id === state.active) || state.coas[0];
+const nodeById = id => coa().nodes.find(n => n.id === id);
+
+/* ---------------- persistence ---------------- */
+let saveTimer = null;
+function markSaved(t){ document.getElementById("saveState").textContent = t; }
+function save(){
+  clearTimeout(saveTimer);
+  markSaved("saving…");
+  saveTimer = setTimeout(() => {
+    try{ localStorage.setItem(KEY, JSON.stringify(state)); markSaved("saved"); }
+    catch(e){ markSaved("save failed"); }
+  }, 300);
+}
+function load(){
+  try{
+    // KEY_OLD is what this app saved under before it was called COAX —
+    // read it once so nobody loses work to the rename, then leave it alone.
+    const raw = localStorage.getItem(KEY) || localStorage.getItem(KEY_OLD);
+    if(raw){
+      const s = JSON.parse(raw);
+      if(s && Array.isArray(s.coas) && s.coas.length){
+        s.coas.forEach(normalizeCoa);
+        if(s.swimArrows === undefined) s.swimArrows = true;
+        state = s; return;
+      }
+    }
+  }catch(e){}
+  state = seed();
+}
+function snapshot(){
+  undoStack.push(JSON.stringify(state));
+  if(undoStack.length > 60) undoStack.shift();
+  redoStack.length = 0;
+}
+function undo(){
+  if(!undoStack.length) return;
+  redoStack.push(JSON.stringify(state));
+  state = JSON.parse(undoStack.pop());
+  sel.clear(); selEdge = null; renderAll(); save();
+}
+function redo(){
+  if(!redoStack.length) return;
+  undoStack.push(JSON.stringify(state));
+  state = JSON.parse(redoStack.pop());
+  sel.clear(); selEdge = null; renderAll(); save();
+}
+
+/* ---------------- text measuring / wrapping ---------------- */
+const mctx = document.createElement("canvas").getContext("2d");
+function measure(text, size, weight){
+  mctx.font = (weight||400) + " " + size + "px " + FONT;
+  return mctx.measureText(text).width;
+}
+function wrap(text, maxW, size, weight){
+  const out = [];
+  (text || "").split("\n").forEach(para => {
+    if(para === ""){ out.push(""); return; }
+    let line = "";
+    para.split(/\s+/).forEach(word => {
+      const test = line ? line + " " + word : word;
+      if(measure(test, size, weight) <= maxW || !line) line = test;
+      else { out.push(line); line = word; }
+    });
+    if(line) out.push(line);
+  });
+  return out.length ? out : [""];
+}
+function layoutNode(n, w){
+  const innerW = (w || n.w) - PAD * 2;
+  const tl = wrap(n.title || "Untitled", innerW, T_SIZE, 600);
+  const bl = n.body ? wrap(n.body, innerW, B_SIZE, 400) : [];
+  const h = PAD + tl.length * T_LH + (bl.length ? 6 + bl.length * B_LH : 0) + PAD;
+  return {titleLines: tl, bodyLines: bl, h: Math.max(46, h)};
+}
+/* the one place that decides where a box sits — chart uses its own x/y,
+   swim mode uses the cell the phase/lane assignment puts it in */
+function nodeRect(n){
+  if(mode === "swim"){
+    const p = slPos.get(n.id);
+    if(p){
+      const g = ghost && ghost.ids.has(n.id) ? ghost : {dx:0, dy:0};
+      return {x:p.x + g.dx, y:p.y + g.dy, w:p.w, h:p.h, L:p.L};
+    }
+  }
+  const L = layoutNode(n, n.w);
+  return {x:n.x, y:n.y, w:n.w, h:L.h, L};
+}
+
+/* ---------------- swim-lane frame ---------------- */
+const inList = (list, id) => !!id && list.some(x => x.id === id);
+function computeSwim(){
+  const C = coa();
+  slPos = new Map();
+  const colOf = n => inList(C.phases, n.phase) ? n.phase : "__u";
+  const rowOf = n => inList(C.lanes,  n.lane)  ? n.lane  : "__u";
+
+  const cols = C.phases.map(p => ({id:p.id, name:p.name}));
+  const rows = C.lanes.map(l => ({id:l.id, name:l.name}));
+  if(!cols.length || C.nodes.some(n => colOf(n) === "__u")) cols.push({id:"__u", name:"Unassigned"});
+  if(!rows.length || C.nodes.some(n => rowOf(n) === "__u")) rows.push({id:"__u", name:"Unassigned"});
+
+  let x = SL_GUT;
+  cols.forEach(c => { c.x = x; c.w = SL_COLW; x += SL_COLW; });
+
+  const bucket = new Map();
+  C.nodes.forEach((n, i) => {
+    const k = rowOf(n) + "|" + colOf(n);
+    if(!bucket.has(k)) bucket.set(k, []);
+    bucket.get(k).push({n, i});
+  });
+  bucket.forEach(list => list.sort((a, b) => (a.n.ord - b.n.ord) || (a.i - b.i)));
+
+  const innerW = SL_COLW - SL_PAD * 2;
+  let y = SL_HEAD;
+  rows.forEach(r => {
+    let hMax = SL_ROWMIN;
+    cols.forEach(c => {
+      const list = bucket.get(r.id + "|" + c.id) || [];
+      if(!list.length) return;
+      let hh = SL_PAD * 2 + (list.length - 1) * SL_GAP;
+      list.forEach(e => { hh += layoutNode(e.n, innerW).h; });
+      hMax = Math.max(hMax, hh);
+    });
+    r.y = y; r.h = hMax; y += hMax;
+  });
+
+  rows.forEach(r => cols.forEach(c => {
+    let yy = r.y + SL_PAD;
+    (bucket.get(r.id + "|" + c.id) || []).forEach(e => {
+      const L = layoutNode(e.n, innerW);
+      slPos.set(e.n.id, {x:c.x + SL_PAD, y:yy, w:innerW, h:L.h, L});
+      yy += L.h + SL_GAP;
+    });
+  }));
+  slFrame = {cols, rows, totalW:x, totalH:y};
+}
+function cellAt(wx, wy){
+  if(!slFrame) return null;
+  const {cols, rows} = slFrame;
+  const col = cols.find(c => wx >= c.x && wx < c.x + c.w) ||
+              (wx < cols[0].x ? cols[0] : cols[cols.length - 1]);
+  const row = rows.find(r => wy >= r.y && wy < r.y + r.h) ||
+              (wy < rows[0].y ? rows[0] : rows[rows.length - 1]);
+  return {col, row};
+}
+
+/* ---------------- svg build ---------------- */
+const svg = document.getElementById("svg");
+let gRoot, gFrame, gEdges, gNodes, gOver;
+function initSvg(){
+  svg.innerHTML = "";
+  const defs = document.createElementNS(NS, "defs");
+  defs.innerHTML =
+    '<pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">' +
+      '<path d="M24 0H0V24" fill="none" stroke="#eceff3" stroke-width="1"/></pattern>' +
+    '<marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">' +
+      '<path d="M0 0L10 5L0 10z" fill="#64748b"/></marker>' +
+    '<marker id="arwS" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">' +
+      '<path d="M0 0L10 5L0 10z" fill="#2563eb"/></marker>';
+  svg.appendChild(defs);
+  const bg = document.createElementNS(NS, "rect");
+  bg.setAttribute("id", "bg");
+  bg.setAttribute("width", "100%"); bg.setAttribute("height", "100%");
+  bg.setAttribute("fill", "url(#grid)");
+  svg.appendChild(bg);
+  gRoot  = el("g", {id:"root"});
+  gFrame = el("g"); gEdges = el("g"); gNodes = el("g"); gOver = el("g");
+  gRoot.append(gFrame, gEdges, gNodes, gOver);
+  svg.appendChild(gRoot);
+}
+function el(tag, attrs){
+  const e = document.createElementNS(NS, tag);
+  for(const k in (attrs||{})) e.setAttribute(k, attrs[k]);
+  return e;
+}
+function applyView(){
+  gRoot.setAttribute("transform", `translate(${view.x},${view.y}) scale(${view.z})`);
+  const b = svg.querySelector("#bg");
+  b.setAttribute("fill", "url(#grid)");
+  svg.querySelector("#grid").setAttribute("patternTransform",
+    `translate(${view.x},${view.y}) scale(${view.z})`);
+  document.getElementById("zLbl").textContent = Math.round(view.z * 100) + "%";
+}
+
+/* anchor point on a rect side */
+function anchorPt(r, side){
+  switch(side){
+    case "t": return {x:r.x + r.w/2, y:r.y,           dx:0,  dy:-1};
+    case "b": return {x:r.x + r.w/2, y:r.y + r.h,     dx:0,  dy:1};
+    case "l": return {x:r.x,         y:r.y + r.h/2,   dx:-1, dy:0};
+    default:  return {x:r.x + r.w,   y:r.y + r.h/2,   dx:1,  dy:0};
+  }
+}
+function pickSides(a, b){
+  const dx = (b.x + b.w/2) - (a.x + a.w/2);
+  const dy = (b.y + b.h/2) - (a.y + a.h/2);
+  if(Math.abs(dy) >= Math.abs(dx)) return dy >= 0 ? ["b","t"] : ["t","b"];
+  return dx >= 0 ? ["r","l"] : ["l","r"];
+}
+function edgePath(ra, rb){
+  const [sa, sb] = pickSides(ra, rb);
+  const p1 = anchorPt(ra, sa), p2 = anchorPt(rb, sb);
+  const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+  const o = Math.max(24, Math.min(80, dist / 2));
+  return `M${p1.x},${p1.y}C${p1.x + p1.dx*o},${p1.y + p1.dy*o} ${p2.x + p2.dx*o},${p2.y + p2.dy*o} ${p2.x},${p2.y}`;
+}
+
+function paintFrame(into){
+  if(mode !== "swim" || !slFrame) return;
+  const {cols, rows, totalW, totalH} = slFrame;
+  into.appendChild(el("rect", {x:0, y:0, width:totalW, height:totalH, fill:"#ffffff"}));
+  rows.forEach((r, i) => {
+    into.appendChild(el("rect", {x:0, y:r.y, width:totalW, height:r.h,
+      fill: i % 2 ? "#f8fafc" : "#ffffff"}));
+    into.appendChild(el("rect", {x:0, y:r.y, width:SL_GUT, height:r.h, fill:"#eef2f7"}));
+    const lines = wrap(r.name, SL_GUT - 24, 12, 600);
+    let ly = r.y + r.h/2 - (lines.length - 1) * 8;
+    lines.forEach(line => {
+      const t = el("text", {x:SL_GUT/2, y:ly + 4, "font-family":FONT, "font-size":12,
+        "font-weight":600, fill: r.id === "__u" ? "#94a3b8" : "#334155", "text-anchor":"middle"});
+      t.textContent = line; into.appendChild(t); ly += 16;
+    });
+    into.appendChild(el("line", {x1:0, y1:r.y, x2:totalW, y2:r.y, stroke:"#cbd5e1", "stroke-width":1}));
+  });
+  into.appendChild(el("rect", {x:0, y:0, width:totalW, height:SL_HEAD, fill:"#e2e8f0"}));
+  cols.forEach(c => {
+    const t = el("text", {x:c.x + c.w/2, y:SL_HEAD/2 + 4, "font-family":FONT, "font-size":12.5,
+      "font-weight":600, fill: c.id === "__u" ? "#94a3b8" : "#1e293b", "text-anchor":"middle"});
+    t.textContent = c.name; into.appendChild(t);
+    into.appendChild(el("line", {x1:c.x, y1:0, x2:c.x, y2:totalH, stroke:"#cbd5e1", "stroke-width":1}));
+  });
+  into.appendChild(el("line", {x1:0, y1:SL_HEAD, x2:totalW, y2:SL_HEAD, stroke:"#94a3b8", "stroke-width":1.5}));
+  into.appendChild(el("rect", {x:0, y:0, width:totalW, height:totalH, fill:"none",
+    stroke:"#94a3b8", "stroke-width":1.5}));
+}
+
+function drawNode(n, into){
+  const r = nodeRect(n), T = TYPES[n.type] || TYPES.action;
+  const g = el("g", {"data-node": n.id, style:"cursor:move"});
+  const on = sel.has(n.id);
+  g.appendChild(el("rect", {
+    x:r.x, y:r.y, width:r.w, height:r.h, rx:8, ry:8,
+    fill:T.fill, stroke:on ? "#2563eb" : T.stroke,
+    "stroke-width": on ? 3 : 2
+  }));
+  let ty = r.y + PAD + T_SIZE;
+  r.L.titleLines.forEach(line => {
+    const t = el("text", {x:r.x + PAD, y:ty, "font-family":FONT, "font-size":T_SIZE,
+      "font-weight":600, fill:"#0f172a"});
+    t.textContent = line; g.appendChild(t); ty += T_LH;
+  });
+  if(r.L.bodyLines.length){
+    ty += 4;
+    r.L.bodyLines.forEach(line => {
+      const t = el("text", {x:r.x + PAD, y:ty + B_SIZE - 3, "font-family":FONT,
+        "font-size":B_SIZE, fill:"#3f4b5e"});
+      t.textContent = line; g.appendChild(t); ty += B_LH;
+    });
+  }
+  into.appendChild(g);
+  if(on){
+    ["t","r","b","l"].forEach(side => {
+      const p = anchorPt(r, side);
+      const c = el("circle", {cx:p.x, cy:p.y, r:5.5, fill:"#fff", stroke:"#2563eb",
+        "stroke-width":2, "data-handle":n.id, "data-side":side, style:"cursor:crosshair"});
+      gOver.appendChild(c);
+    });
+    if(mode !== "swim"){   // width is column-driven in swim mode
+      gOver.appendChild(el("rect", {x:r.x + r.w - 6, y:r.y + r.h - 6, width:12, height:12, rx:3,
+        fill:"#2563eb", "data-resize":n.id, style:"cursor:ew-resize"}));
+    }
+  }
+}
+
+function renderBoard(){
+  gFrame.innerHTML = ""; gEdges.innerHTML = ""; gNodes.innerHTML = ""; gOver.innerHTML = "";
+  const C = coa();
+  if(mode === "swim"){ computeSwim(); paintFrame(gFrame); }
+  const showEdges = mode !== "swim" || state.swimArrows !== false;
+  if(showEdges) C.edges.forEach(e => {
+    const a = C.nodes.find(n => n.id === e.from), b = C.nodes.find(n => n.id === e.to);
+    if(!a || !b) return;
+    const d = edgePath(nodeRect(a), nodeRect(b));
+    const on = selEdge === e.id;
+    gEdges.appendChild(el("path", {d, fill:"none", stroke:on ? "#2563eb" : "#64748b",
+      "stroke-width":on ? 2.5 : 1.8, "marker-end": on ? "url(#arwS)" : "url(#arw)"}));
+    gEdges.appendChild(el("path", {d, fill:"none", stroke:"transparent", "stroke-width":14,
+      "data-edge":e.id, style:"cursor:pointer"}));
+    if(e.label){
+      const m = midOf(d);
+      const bgw = measure(e.label, 11, 400) + 8;
+      gEdges.appendChild(el("rect", {x:m.x - bgw/2, y:m.y - 8, width:bgw, height:16, rx:4,
+        fill:"#ffffff", stroke:"#e2e8f0"}));
+      const t = el("text", {x:m.x, y:m.y + 4, "font-family":FONT, "font-size":11,
+        fill:"#475569", "text-anchor":"middle", "data-edge":e.id, style:"cursor:pointer"});
+      t.textContent = e.label; gEdges.appendChild(t);
+    }
+  });
+  C.nodes.forEach(n => drawNode(n, gNodes));
+  if(pane === "swim") renderAssign();
+  applyView();
+}
+function midOf(d){
+  const p = el("path", {d}); svg.appendChild(p);
+  const pt = p.getPointAtLength(p.getTotalLength() / 2); p.remove();
+  return pt;
+}
+
+/* ---------------- rails / notes / toolbar ---------------- */
+function renderRail(){
+  const list = document.getElementById("coaList");
+  list.innerHTML = "";
+  state.coas.forEach(c => {
+    const d = document.createElement("div");
+    d.className = "coaItem" + (c.id === state.active ? " active" : "");
+    d.innerHTML = `<span class="nm"></span><span class="acts">
+      <button class="ghost" data-act="ren" title="Rename">&#9998;</button>
+      <button class="ghost" data-act="del" title="Delete">&times;</button></span>`;
+    d.querySelector(".nm").textContent = c.name;
+    d.onclick = ev => {
+      const act = ev.target.dataset.act;
+      if(act === "ren"){
+        const nm = prompt("Rename COA", c.name);
+        if(nm){ snapshot(); c.name = nm.trim() || c.name; renderAll(); save(); }
+        return;
+      }
+      if(act === "del"){
+        if(state.coas.length === 1){ alert("Keep at least one COA."); return; }
+        if(!confirm(`Delete "${c.name}"? This cannot be undone except with Ctrl+Z.`)) return;
+        snapshot();
+        state.coas = state.coas.filter(x => x.id !== c.id);
+        if(state.active === c.id) state.active = state.coas[0].id;
+        sel.clear(); renderAll(); save();
+        return;
+      }
+      state.active = c.id; sel.clear(); selEdge = null; renderAll(); save();
+    };
+    list.appendChild(d);
+  });
+}
+function renderNotes(){
+  const C = coa();
+  document.querySelectorAll("#notes textarea").forEach(t => {
+    t.value = C.notes[t.dataset.k] || "";
+  });
+}
+function renderToolbar(){
+  const tb = document.getElementById("toolbar");
+  tb.innerHTML = "";
+  Object.entries(TYPES).forEach(([k, T]) => {
+    const d = document.createElement("div");
+    d.className = "swatch" + (k === curType ? " on" : "");
+    d.style.background = T.fill;
+    d.style.borderColor = k === curType ? "#fff" : T.stroke;
+    d.textContent = T.label;
+    d.title = T.name + " — click to set type of selection, or the default for new boxes";
+    d.onclick = () => {
+      curType = k;
+      if(sel.size){
+        snapshot();
+        sel.forEach(id => { const n = nodeById(id); if(n) n.type = k; });
+        save();
+      }
+      renderToolbar(); renderBoard();
+    };
+    tb.appendChild(d);
+  });
+}
+function renderAll(){
+  renderRail(); renderNotes(); renderToolbar(); renderSlbar(); renderBoard();
+  if(pane === "compare") renderCompare();
+}
+
+/* ---------------- swim-lane control strip ---------------- */
+function chipRow(host, list, label){
+  host.innerHTML = "";
+  list.forEach((item, i) => {
+    const c = document.createElement("span");
+    c.className = "chip";
+    c.innerHTML = `<button data-mv="-1" title="Move earlier">&lsaquo;</button>
+      <input value="${esc(item.name)}" size="1">
+      <button data-mv="1" title="Move later">&rsaquo;</button>
+      <button class="rm" title="Delete ${label}">&times;</button>`;
+    const inp = c.querySelector("input");
+    inp.style.width = Math.max(52, item.name.length * 7 + 14) + "px";
+    inp.onchange = () => {
+      snapshot(); item.name = inp.value.trim() || item.name; save(); renderAll();
+    };
+    c.querySelectorAll("[data-mv]").forEach(b => {
+      b.onclick = () => {
+        const j = i + Number(b.dataset.mv);
+        if(j < 0 || j >= list.length) return;
+        snapshot();
+        list.splice(j, 0, list.splice(i, 1)[0]);
+        save(); renderAll();
+      };
+    });
+    c.querySelector(".rm").onclick = () => {
+      if(list.length === 1){ alert("Keep at least one " + label + "."); return; }
+      snapshot();
+      list.splice(i, 1);       // boxes that pointed here fall into "Unassigned"
+      save(); renderAll();
+    };
+    host.appendChild(c);
+  });
+}
+function renderSlbar(){
+  if(pane !== "swim") return;
+  const C = coa();
+  chipRow(document.getElementById("phaseChips"), C.phases, "phase");
+  chipRow(document.getElementById("laneChips"), C.lanes, "lane");
+  document.getElementById("swimArrows").checked = state.swimArrows !== false;
+}
+function renderAssign(){
+  const box = document.getElementById("assignBox");
+  if(sel.size !== 1){ box.innerHTML = ""; return; }
+  const n = nodeById([...sel][0]);
+  if(!n){ box.innerHTML = ""; return; }
+  const C = coa();
+  const opts = (list, cur) => `<option value="">— unassigned —</option>` +
+    list.map(o => `<option value="${o.id}"${o.id === cur ? " selected" : ""}>${esc(o.name)}</option>`).join("");
+  box.innerHTML = `<span>Selected:</span>
+    <select id="asgPhase">${opts(C.phases, n.phase)}</select>
+    <select id="asgLane">${opts(C.lanes, n.lane)}</select>`;
+  box.querySelector("#asgPhase").onchange = e => {
+    snapshot(); n.phase = e.target.value || null; save(); renderBoard();
+  };
+  box.querySelector("#asgLane").onchange = e => {
+    snapshot(); n.lane = e.target.value || null; save(); renderBoard();
+  };
+}
+document.getElementById("addPhase").onclick = () => {
+  snapshot(); coa().phases.push({id:uid(), name:"Phase " + (coa().phases.length + 1)});
+  save(); renderAll(); fit();
+};
+document.getElementById("addLane").onclick = () => {
+  snapshot(); coa().lanes.push({id:uid(), name:"Lane " + (coa().lanes.length + 1)});
+  save(); renderAll(); fit();
+};
+document.getElementById("swimArrows").onchange = e => {
+  state.swimArrows = e.target.checked; save(); renderBoard();
+};
+
+/* ---------------- view switching ---------------- */
+function setPane(v){
+  pane = v;
+  if(v !== "compare") mode = v;
+  document.body.classList.toggle("swim", v === "swim");
+  document.getElementById("compare").style.display = v === "compare" ? "block" : "none";
+  document.getElementById("btnTidy").style.display = v === "chart" ? "" : "none";
+  document.querySelectorAll(".views button").forEach(b =>
+    b.classList.toggle("on", b.dataset.view === v));
+  document.getElementById("hint").textContent = v === "swim"
+    ? "Drag a box into a cell to set its phase and lane · Double-click a cell = new box · Del = delete"
+    : "Double-click board = new box · Drag a side dot = arrow · Tab on a selected box = child · Del = delete · Ctrl+Z = undo";
+  document.getElementById("hint").style.display = v === "compare" ? "none" : "";
+  renderAll();
+  if(v !== "compare") fit();
+}
+document.querySelectorAll(".views button").forEach(b => {
+  b.onclick = () => setPane(b.dataset.view);
+});
+
+document.querySelectorAll("#notes textarea").forEach(t => {
+  t.addEventListener("input", () => { coa().notes[t.dataset.k] = t.value; save(); });
+});
+document.getElementById("projTitle").addEventListener("input", e => {
+  state.title = e.target.value; save();
+});
+
+/* ---------------- coordinates ---------------- */
+function toWorld(cx, cy){
+  const r = svg.getBoundingClientRect();
+  return {x:(cx - r.left - view.x) / view.z, y:(cy - r.top - view.y) / view.z};
+}
+function toScreen(wx, wy){
+  const r = svg.getBoundingClientRect();
+  return {x:wx * view.z + view.x + r.left, y:wy * view.z + view.y + r.top};
+}
+const snap = v => Math.round(v / GRID) * GRID;
+
+/* ---------------- interaction ---------------- */
+let drag = null;
+svg.addEventListener("pointerdown", ev => {
+  if(ev.button === 1 || ev.button === 2) return;
+  const tEl = ev.target;
+  const hId = tEl.dataset && tEl.dataset.handle;
+  const rzId = tEl.dataset && tEl.dataset.resize;
+  const nId = tEl.closest && tEl.closest("[data-node]") &&
+              tEl.closest("[data-node]").dataset.node;
+  const eId = tEl.dataset && tEl.dataset.edge;
+  svg.setPointerCapture(ev.pointerId);
+
+  if(hId){
+    const p = toWorld(ev.clientX, ev.clientY);
+    drag = {mode:"link", from:hId, x:p.x, y:p.y};
+    const tmp = el("path", {id:"tmpLink", fill:"none", stroke:"#2563eb",
+      "stroke-width":2, "stroke-dasharray":"5 4"});
+    gOver.appendChild(tmp);
+    return;
+  }
+  if(rzId){
+    const n = nodeById(rzId);
+    const p = toWorld(ev.clientX, ev.clientY);
+    drag = {mode:"resize", id:rzId, w0:n.w, x0:p.x, moved:false};
+    return;
+  }
+  if(nId){
+    if(ev.shiftKey){ sel.has(nId) ? sel.delete(nId) : sel.add(nId); }
+    else if(!sel.has(nId)){ sel.clear(); sel.add(nId); }
+    selEdge = null;
+    const p = toWorld(ev.clientX, ev.clientY);
+    if(mode === "swim"){
+      drag = {mode:"swimmove", x0:p.x, y0:p.y, moved:false};
+      ghost = {ids:new Set(sel), dx:0, dy:0};
+    }else{
+      drag = {mode:"move", x0:p.x, y0:p.y, moved:false,
+        orig:[...sel].map(id => { const n = nodeById(id); return {id, x:n.x, y:n.y}; })};
+    }
+    renderBoard();
+    return;
+  }
+  if(eId){
+    selEdge = eId; sel.clear(); renderBoard();
+    return;
+  }
+  // empty board -> pan
+  sel.clear(); selEdge = null; renderBoard();
+  drag = {mode:"pan", sx:ev.clientX, sy:ev.clientY, vx:view.x, vy:view.y};
+  svg.classList.add("panning");
+});
+
+svg.addEventListener("pointermove", ev => {
+  if(!drag) return;
+  if(drag.mode === "pan"){
+    view.x = drag.vx + (ev.clientX - drag.sx);
+    view.y = drag.vy + (ev.clientY - drag.sy);
+    applyView(); return;
+  }
+  const p = toWorld(ev.clientX, ev.clientY);
+  if(drag.mode === "move"){
+    if(!drag.moved){ snapshot(); drag.moved = true; }
+    const dx = p.x - drag.x0, dy = p.y - drag.y0;
+    drag.orig.forEach(o => {
+      const n = nodeById(o.id); if(!n) return;
+      n.x = snap(o.x + dx); n.y = snap(o.y + dy);
+    });
+    renderBoard(); return;
+  }
+  if(drag.mode === "swimmove"){
+    drag.moved = true;
+    ghost.dx = p.x - drag.x0; ghost.dy = p.y - drag.y0;
+    renderBoard(); return;
+  }
+  if(drag.mode === "resize"){
+    if(!drag.moved){ snapshot(); drag.moved = true; }
+    const n = nodeById(drag.id);
+    n.w = Math.max(110, Math.min(460, snap(drag.w0 + (p.x - drag.x0))));
+    renderBoard(); return;
+  }
+  if(drag.mode === "link"){
+    const a = nodeById(drag.from); if(!a) return;
+    const ra = nodeRect(a);
+    const fake = {x:p.x - 1, y:p.y - 1, w:2, h:2};
+    document.getElementById("tmpLink").setAttribute("d", edgePath(ra, fake));
+  }
+});
+
+svg.addEventListener("pointerup", ev => {
+  svg.classList.remove("panning");
+  if(!drag) return;
+  if(drag.mode === "link"){
+    const tmp = document.getElementById("tmpLink"); if(tmp) tmp.remove();
+    const under = document.elementFromPoint(ev.clientX, ev.clientY);
+    const host = under && under.closest && under.closest("[data-node]");
+    const toId = host && host.dataset.node;
+    if(toId && toId !== drag.from){
+      const C = coa();
+      const dup = C.edges.some(e => e.from === drag.from && e.to === toId);
+      if(!dup){ snapshot(); C.edges.push({id:uid(), from:drag.from, to:toId, label:""}); save(); }
+    }
+    renderBoard();
+  }
+  if(drag.mode === "swimmove"){
+    if(drag.moved){
+      snapshot();
+      // assign each dragged box to whatever cell it was dropped over
+      [...sel].map(id => nodeById(id)).filter(Boolean).forEach(n => {
+        const r = nodeRect(n);
+        const cell = cellAt(r.x + r.w/2, r.y + r.h/2);
+        if(!cell) return;
+        n.ord = dropOrd(n, cell, r.y + r.h/2);
+        n.phase = cell.col.id === "__u" ? null : cell.col.id;
+        n.lane  = cell.row.id === "__u" ? null : cell.row.id;
+      });
+      save();
+    }
+    ghost = null; renderBoard();
+  }
+  if((drag.mode === "move" || drag.mode === "resize") && drag.moved) save();
+  drag = null;
+});
+
+/* where in the target cell's stack should this box land? */
+function dropOrd(node, cell, dropY){
+  const C = coa();
+  const sibs = C.nodes.filter(m => m !== node &&
+      (inList(C.phases, m.phase) ? m.phase : "__u") === cell.col.id &&
+      (inList(C.lanes,  m.lane)  ? m.lane  : "__u") === cell.row.id)
+    .sort((a, b) => a.ord - b.ord);
+  if(!sibs.length) return 0;
+  let i = 0;
+  for(const s of sibs){
+    const p = slPos.get(s.id);
+    if(p && dropY > p.y + p.h/2) i++; else break;
+  }
+  const before = sibs[i - 1], after = sibs[i];
+  if(before && after) return (before.ord + after.ord) / 2;
+  if(before) return before.ord + 1;
+  return after.ord - 1;
+}
+
+svg.addEventListener("dblclick", ev => {
+  const host = ev.target.closest && ev.target.closest("[data-node]");
+  if(host){ editNode(host.dataset.node); return; }
+  const eEl = ev.target.dataset && ev.target.dataset.edge;
+  if(eEl){
+    const e = coa().edges.find(x => x.id === eEl);
+    const lb = prompt("Arrow label (blank to clear)", e.label || "");
+    if(lb !== null){ snapshot(); e.label = lb.trim(); renderBoard(); save(); }
+    return;
+  }
+  const p = toWorld(ev.clientX, ev.clientY);
+  snapshot();
+  const n = mkNode(snap(p.x - NODE_W/2), snap(p.y - 24), "New step", "", curType);
+  if(mode === "swim"){
+    const cell = cellAt(p.x, p.y);
+    if(cell){
+      n.phase = cell.col.id === "__u" ? null : cell.col.id;
+      n.lane  = cell.row.id === "__u" ? null : cell.row.id;
+      n.ord = dropOrd(n, cell, p.y);
+    }
+  }
+  coa().nodes.push(n);
+  sel.clear(); sel.add(n.id);
+  renderBoard(); save(); editNode(n.id);
+});
+
+svg.addEventListener("wheel", ev => {
+  ev.preventDefault();
+  const f = ev.deltaY < 0 ? 1.12 : 1 / 1.12;
+  zoomAt(ev.clientX, ev.clientY, f);
+}, {passive:false});
+
+function zoomAt(cx, cy, f){
+  const before = toWorld(cx, cy);
+  view.z = Math.max(0.25, Math.min(2.5, view.z * f));
+  const r = svg.getBoundingClientRect();
+  view.x = cx - r.left - before.x * view.z;
+  view.y = cy - r.top - before.y * view.z;
+  applyView();
+}
+document.getElementById("zIn").onclick = () => {
+  const r = svg.getBoundingClientRect();
+  zoomAt(r.left + r.width/2, r.top + r.height/2, 1.15);
+};
+document.getElementById("zOut").onclick = () => {
+  const r = svg.getBoundingClientRect();
+  zoomAt(r.left + r.width/2, r.top + r.height/2, 1/1.15);
+};
+
+/* ---------------- inline editor ---------------- */
+const editor = document.getElementById("editor");
+let editing = null;
+function editNode(id){
+  const n = nodeById(id); if(!n) return;
+  editing = id;
+  const r = nodeRect(n);            // mode-aware: chart x/y, or the swim cell slot
+  const s = toScreen(r.x, r.y);
+  const st = svg.getBoundingClientRect();
+  editor.style.display = "block";
+  editor.style.left = (s.x - st.left) + "px";
+  editor.style.top  = (s.y - st.top) + "px";
+  editor.style.width = (r.w * view.z) + "px";
+  editor.style.height = Math.max(r.h * view.z, 60) + "px";
+  editor.style.fontSize = (13 * view.z) + "px";
+  editor.value = n.title + (n.body ? "\n" + n.body : "");
+  editor.focus();
+  editor.setSelectionRange(0, n.title.length);
+}
+function commitEdit(){
+  if(!editing) return;
+  const n = nodeById(editing); editing = null;
+  editor.style.display = "none";
+  if(!n) return;
+  const lines = editor.value.split("\n");
+  const title = (lines.shift() || "").trim();
+  const body = lines.join("\n").trim();
+  if(n.title !== title || n.body !== body){
+    snapshot();
+    n.title = title || "Untitled";
+    n.body = body;
+    save();
+  }
+  renderBoard();
+}
+editor.addEventListener("blur", commitEdit);
+editor.addEventListener("keydown", ev => {
+  if(ev.key === "Escape"){ ev.preventDefault(); editor.blur(); }
+  if(ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)){ ev.preventDefault(); editor.blur(); }
+  ev.stopPropagation();
+});
+
+/* ---------------- keyboard ---------------- */
+document.addEventListener("keydown", ev => {
+  const tag = (ev.target.tagName || "").toLowerCase();
+  if(tag === "input" || tag === "textarea" || tag === "select") return;
+  const ctrl = ev.ctrlKey || ev.metaKey;
+
+  if(ctrl && ev.key.toLowerCase() === "z" && !ev.shiftKey){ ev.preventDefault(); undo(); return; }
+  if(ctrl && (ev.key.toLowerCase() === "y" || (ev.key.toLowerCase() === "z" && ev.shiftKey))){
+    ev.preventDefault(); redo(); return;
+  }
+  if(ctrl && ev.key.toLowerCase() === "d" && sel.size){
+    ev.preventDefault(); snapshot();
+    const clones = [];
+    sel.forEach(id => {
+      const n = nodeById(id); if(!n) return;
+      const c = JSON.parse(JSON.stringify(n));
+      c.id = uid(); c.x += 30; c.y += 30;
+      coa().nodes.push(c); clones.push(c.id);
+    });
+    sel = new Set(clones); renderBoard(); save(); return;
+  }
+  if(ev.key === "Delete" || ev.key === "Backspace"){
+    if(!sel.size && !selEdge) return;
+    ev.preventDefault(); snapshot();
+    const C = coa();
+    if(selEdge){ C.edges = C.edges.filter(e => e.id !== selEdge); selEdge = null; }
+    if(sel.size){
+      C.nodes = C.nodes.filter(n => !sel.has(n.id));
+      C.edges = C.edges.filter(e => !sel.has(e.from) && !sel.has(e.to));
+      sel.clear();
+    }
+    renderBoard(); save(); return;
+  }
+  if(ev.key === "Enter" && sel.size === 1){ ev.preventDefault(); editNode([...sel][0]); return; }
+  if(ev.key === "Escape"){ sel.clear(); selEdge = null; renderBoard(); return; }
+  if(ev.key === "Tab" && sel.size === 1){
+    ev.preventDefault(); snapshot();
+    const p = nodeById([...sel][0]); const r = nodeRect(p);
+    const sibs = coa().edges.filter(e => e.from === p.id).length;
+    const child = mkNode(snap(p.x + sibs * (NODE_W + 30)), snap(p.y + r.h + 60),
+                         "New step", "", curType);
+    if(mode === "swim"){
+      // a child is the next thing that happens: same lane, next phase along
+      const C = coa();
+      const pi = C.phases.findIndex(x => x.id === p.phase);
+      child.phase = pi >= 0 ? (C.phases[pi + 1] || C.phases[pi]).id : p.phase;
+      child.lane = p.lane;
+      child.ord = p.ord + 1;
+    }
+    coa().nodes.push(child);
+    coa().edges.push({id:uid(), from:p.id, to:child.id, label:""});
+    sel = new Set([child.id]);
+    renderBoard(); save(); editNode(child.id); return;
+  }
+  if(ctrl && ev.key.toLowerCase() === "a"){
+    ev.preventDefault(); sel = new Set(coa().nodes.map(n => n.id)); renderBoard(); return;
+  }
+});
+
+/* ---------------- tidy / fit ---------------- */
+function tidy(){
+  const C = coa();
+  if(mode === "swim" || !C.nodes.length) return;   // swim layout is computed, not placed
+  snapshot();
+  const kids = new Map(), indeg = new Map();
+  C.nodes.forEach(n => { kids.set(n.id, []); indeg.set(n.id, 0); });
+  C.edges.forEach(e => {
+    if(!kids.has(e.from) || !kids.has(e.to)) return;
+    kids.get(e.from).push(e.to);
+    indeg.set(e.to, indeg.get(e.to) + 1);
+  });
+  const roots = C.nodes.filter(n => indeg.get(n.id) === 0).map(n => n.id);
+  if(!roots.length) roots.push(C.nodes[0].id);
+
+  const GAPX = 34, GAPY = 64, placed = new Set();
+  let cursor = 0;
+  const rowH = new Map();
+
+  function widthOf(id){
+    if(placed.has(id)) return 0;
+    const ch = kids.get(id).filter(c => !placed.has(c));
+    if(!ch.length) return nodeById(id).w;
+    return Math.max(nodeById(id).w, ch.reduce((s,c) => s + widthOf(c) + GAPX, -GAPX));
+  }
+  function place(id, left, depth){
+    if(placed.has(id)) return;
+    placed.add(id);
+    const n = nodeById(id), r = nodeRect(n);
+    rowH.set(depth, Math.max(rowH.get(depth) || 0, r.h));
+    const ch = kids.get(id).filter(c => !placed.has(c));
+    const w = Math.max(n.w, ch.reduce((s,c) => s + widthOf(c) + GAPX, -GAPX));
+    n._d = depth; n._x = left + (w - n.w) / 2;
+    let cx = left;
+    ch.forEach(c => { const cw = widthOf(c); place(c, cx, depth + 1); cx += cw + GAPX; });
+  }
+  roots.forEach(id => { const w = widthOf(id); place(id, cursor, 0); cursor += w + GAPX * 2; });
+  C.nodes.filter(n => !placed.has(n.id)).forEach((n, i) => {
+    n._d = 99; n._x = i * (NODE_W + GAPX); placed.add(n.id);
+  });
+
+  const rowY = new Map();
+  let y = 0;
+  [...new Set(C.nodes.map(n => n._d))].sort((a,b) => a-b).forEach(d => {
+    rowY.set(d, y); y += (rowH.get(d) || 60) + GAPY;
+  });
+  C.nodes.forEach(n => {
+    n.x = snap(n._x); n.y = snap(rowY.get(n._d) || 0);
+    delete n._d; delete n._x;
+  });
+  renderBoard(); save(); fit();
+}
+function bbox(){
+  const C = coa();
+  if(mode === "swim"){
+    if(!slFrame) computeSwim();
+    return {x:0, y:0, w:slFrame.totalW, h:slFrame.totalH};
+  }
+  if(!C.nodes.length) return {x:0, y:0, w:400, h:300};
+  let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+  C.nodes.forEach(n => {
+    const r = nodeRect(n);
+    x1 = Math.min(x1, r.x); y1 = Math.min(y1, r.y);
+    x2 = Math.max(x2, r.x + r.w); y2 = Math.max(y2, r.y + r.h);
+  });
+  return {x:x1, y:y1, w:x2 - x1, h:y2 - y1};
+}
+function fit(){
+  const b = bbox(), r = svg.getBoundingClientRect(), m = 50;
+  view.z = Math.max(0.25, Math.min(1.6,
+    Math.min((r.width - m*2) / Math.max(b.w, 1), (r.height - m*2) / Math.max(b.h, 1))));
+  view.x = (r.width - b.w * view.z) / 2 - b.x * view.z;
+  view.y = (r.height - b.h * view.z) / 2 - b.y * view.z;
+  applyView();
+}
+document.getElementById("btnTidy").onclick = tidy;
+document.getElementById("btnFit").onclick = fit;
+
+/* ---------------- COA management ---------------- */
+document.getElementById("btnNewCoa").onclick = () => {
+  snapshot();
+  const c = newCoa("COA " + (state.coas.length + 1));
+  state.coas.push(c); state.active = c.id; sel.clear();
+  renderAll(); save();
+};
+document.getElementById("btnDupCoa").onclick = () => {
+  snapshot();
+  const src = coa();
+  const c = JSON.parse(JSON.stringify(src));
+  c.id = uid(); c.name = src.name + " (copy)";
+  const map = {};
+  c.nodes.forEach(n => { const o = n.id; n.id = uid(); map[o] = n.id; });
+  c.edges.forEach(e => { e.id = uid(); e.from = map[e.from]; e.to = map[e.to]; });
+  const idm = {};
+  c.phases.concat(c.lanes).forEach(x => { const o = x.id; x.id = uid(); idm[o] = x.id; });
+  c.nodes.forEach(n => { n.phase = idm[n.phase] || null; n.lane = idm[n.lane] || null; });
+  state.coas.push(c); state.active = c.id; sel.clear();
+  renderAll(); save();
+};
+
+/* ---------------- compare view ---------------- */
+function totalFor(c){
+  return state.criteria.reduce((s, cr) =>
+    s + (Number(c.scores[cr.id]) || 0) * (Number(cr.weight) || 0), 0);
+}
+function renderCompare(){
+  const host = document.getElementById("compare");
+  const totals = state.coas.map(totalFor);
+  const best = Math.max(...totals, 0);
+  let h = `<h2>COA comparison</h2>
+    <p class="sub">Weighted decision matrix. Score each COA 1&ndash;5 against every criterion; weight the criteria by importance. Totals are weight &times; score.</p>
+    <table class="mx"><thead><tr><th style="width:34%">Criterion</th><th class="num">Weight</th>`;
+  state.coas.forEach(c => { h += `<th class="num">${esc(c.name)}</th>`; });
+  h += `<th style="width:34px"></th></tr></thead><tbody>`;
+  state.criteria.forEach(cr => {
+    h += `<tr><td><input class="cell-in" data-cr="${cr.id}" data-f="name" value="${esc(cr.name)}"></td>
+      <td class="num"><input class="cell-in num" type="number" min="0" max="9" data-cr="${cr.id}" data-f="weight" value="${cr.weight}"></td>`;
+    state.coas.forEach(c => {
+      h += `<td class="num"><input class="cell-in num" type="number" min="0" max="5"
+        data-coa="${c.id}" data-crit="${cr.id}" value="${c.scores[cr.id] != null ? c.scores[cr.id] : ""}"></td>`;
+    });
+    h += `<td><button class="ghost" data-delcr="${cr.id}" title="Remove criterion">&times;</button></td></tr>`;
+  });
+  h += `<tr class="total"><td>Total</td><td class="num"></td>`;
+  state.coas.forEach((c, i) => {
+    h += `<td class="num${totals[i] === best && best > 0 ? " best" : ""}">${totals[i]}</td>`;
+  });
+  h += `<td></td></tr></tbody></table>
+    <button id="addCrit">+ Add criterion</button>
+    <h2 style="margin-top:26px">Side by side</h2>
+    <p class="sub">Pulled straight from each COA's notes panel.</p>
+    <div class="prosconsGrid">`;
+  state.coas.forEach(c => {
+    h += `<div class="ccard"><h3>${esc(c.name)}</h3>
+      <div class="lbl">Concept</div><pre>${esc(c.notes.concept) || "&mdash;"}</pre>
+      <div class="lbl" style="color:#4ade80">Pros</div><pre>${esc(c.notes.pros) || "&mdash;"}</pre>
+      <div class="lbl" style="color:#f87171">Cons</div><pre>${esc(c.notes.cons) || "&mdash;"}</pre>
+      <div class="lbl">Assumptions</div><pre>${esc(c.notes.assumptions) || "&mdash;"}</pre>
+      <div class="lbl">Risks</div><pre>${esc(c.notes.risks) || "&mdash;"}</pre>
+      <div class="lbl">Size</div><pre>${c.nodes.length} boxes, ${c.edges.length} arrows</pre></div>`;
+  });
+  h += `</div>`;
+  host.innerHTML = h;
+
+  host.querySelectorAll("input[data-cr]").forEach(inp => {
+    inp.onchange = () => {
+      const cr = state.criteria.find(x => x.id === inp.dataset.cr);
+      if(!cr) return;
+      snapshot();
+      if(inp.dataset.f === "weight") cr.weight = Number(inp.value) || 0;
+      else cr.name = inp.value;
+      save(); renderCompare();
+    };
+  });
+  host.querySelectorAll("input[data-coa]").forEach(inp => {
+    inp.onchange = () => {
+      const c = state.coas.find(x => x.id === inp.dataset.coa);
+      if(!c) return;
+      snapshot();
+      const v = inp.value === "" ? null : Math.max(0, Math.min(5, Number(inp.value) || 0));
+      if(v === null) delete c.scores[inp.dataset.crit]; else c.scores[inp.dataset.crit] = v;
+      save(); renderCompare();
+    };
+  });
+  host.querySelectorAll("[data-delcr]").forEach(b => {
+    b.onclick = () => {
+      snapshot();
+      state.criteria = state.criteria.filter(x => x.id !== b.dataset.delcr);
+      save(); renderCompare();
+    };
+  });
+  host.querySelector("#addCrit").onclick = () => {
+    snapshot();
+    state.criteria.push({id:uid(), name:"New criterion", weight:1});
+    save(); renderCompare();
+  };
+}
+function esc(s){
+  return String(s == null ? "" : s).replace(/[&<>"]/g,
+    ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
+}
+
+/* ---------------- export ---------------- */
+function download(blob, name){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+function slug(s){ return (s || "coa").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase(); }
+
+document.getElementById("btnExport").onclick = () => {
+  download(new Blob([JSON.stringify(state, null, 2)], {type:"application/json"}),
+           slug(state.title) + ".coax.json");
+};
+document.getElementById("btnImport").onclick = () => document.getElementById("fileIn").click();
+document.getElementById("fileIn").onchange = ev => {
+  const f = ev.target.files[0]; if(!f) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    try{
+      const s = JSON.parse(rd.result);
+      if(!s || !Array.isArray(s.coas) || !s.coas.length) throw 0;
+      snapshot();
+      state = s;
+      if(!state.criteria) state.criteria = [];
+      if(!state.active || !state.coas.some(c => c.id === state.active)) state.active = state.coas[0].id;
+      state.coas.forEach(normalizeCoa);
+      if(state.swimArrows === undefined) state.swimArrows = true;
+      sel.clear();
+      document.getElementById("projTitle").value = state.title || "";
+      renderAll(); fit(); save();
+    }catch(e){ alert("That file isn't a COAX save."); }
+  };
+  rd.readAsText(f);
+  ev.target.value = "";
+};
+
+function buildStandaloneSvg(scale){
+  const b = bbox(), m = 30;
+  const W = Math.ceil((b.w + m*2) * scale), H = Math.ceil((b.h + m*2) * scale);
+  const out = el("svg", {xmlns:NS, width:W, height:H,
+    viewBox:`${b.x - m} ${b.y - m} ${b.w + m*2} ${b.h + m*2}`});
+  out.appendChild(el("rect", {x:b.x - m, y:b.y - m, width:b.w + m*2, height:b.h + m*2, fill:"#ffffff"}));
+  const defs = document.createElementNS(NS, "defs");
+  defs.innerHTML = '<marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#64748b"/></marker>';
+  out.appendChild(defs);
+  const saveSel = new Set(sel), saveEdge = selEdge;
+  sel = new Set(); selEdge = null;
+  const fLayer = el("g"), eLayer = el("g"), nLayer = el("g"), oSave = gOver;
+  gOver = el("g");                       // swallow handles
+  const C = coa();
+  if(mode === "swim"){ computeSwim(); paintFrame(fLayer); }
+  const showEdges = mode !== "swim" || state.swimArrows !== false;
+  if(showEdges) C.edges.forEach(e => {
+    const a = C.nodes.find(n => n.id === e.from), z = C.nodes.find(n => n.id === e.to);
+    if(!a || !z) return;
+    const d = edgePath(nodeRect(a), nodeRect(z));
+    eLayer.appendChild(el("path", {d, fill:"none", stroke:"#64748b", "stroke-width":1.8, "marker-end":"url(#arw)"}));
+    if(e.label){
+      const mid = midOf(d), bw = measure(e.label, 11, 400) + 8;
+      eLayer.appendChild(el("rect", {x:mid.x - bw/2, y:mid.y - 8, width:bw, height:16, rx:4, fill:"#fff", stroke:"#e2e8f0"}));
+      const t = el("text", {x:mid.x, y:mid.y + 4, "font-family":FONT, "font-size":11, fill:"#475569", "text-anchor":"middle"});
+      t.textContent = e.label; eLayer.appendChild(t);
+    }
+  });
+  C.nodes.forEach(n => drawNode(n, nLayer));
+  gOver = oSave; sel = saveSel; selEdge = saveEdge;
+  out.append(fLayer, eLayer, nLayer);
+  const ttl = el("text", {x:b.x - m + 14, y:b.y - m + 20, "font-family":FONT,
+    "font-size":13, "font-weight":600, fill:"#94a3b8"});
+  ttl.textContent = (state.title || "") + "  —  " + coa().name +
+    (mode === "swim" ? "  —  synchronization matrix" : "");
+  out.appendChild(ttl);
+  return {svg: out, W, H};
+}
+document.getElementById("btnSvg").onclick = () => {
+  const {svg: s} = buildStandaloneSvg(1);
+  const str = '<?xml version="1.0" encoding="UTF-8"?>\n' + new XMLSerializer().serializeToString(s);
+  download(new Blob([str], {type:"image/svg+xml"}), slug(state.title) + "-" + slug(coa().name) + ".svg");
+};
+document.getElementById("btnPng").onclick = () => {
+  const scale = 2;
+  const {svg: s, W, H} = buildStandaloneSvg(scale);
+  const str = new XMLSerializer().serializeToString(s);
+  const img = new Image();
+  img.onload = () => {
+    const cv = document.createElement("canvas");
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext("2d");
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+    ctx.drawImage(img, 0, 0, W, H);
+    cv.toBlob(bl => download(bl, slug(state.title) + "-" + slug(coa().name) + ".png"), "image/png");
+  };
+  img.onerror = () => alert("PNG export failed — use SVG export instead.");
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(str);
+};
+document.getElementById("btnPrint").onclick = () => { fit(); setTimeout(() => window.print(), 120); };
+
+/* ---------------- boot ---------------- */
+load();
+initSvg();
+document.getElementById("projTitle").value = state.title || "";
+setPane("chart");
+markSaved("saved");
+window.addEventListener("resize", applyView);
+svg.addEventListener("contextmenu", e => e.preventDefault());
+</script>
+</body>
+</html>

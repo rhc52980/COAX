@@ -1,0 +1,15 @@
+# Local Claude Code config (launch configs, settings)
+.claude/
+
+# Saved plans — keep your own COAs out of the repo
+*.coax.json
+*.coa.json
+
+# Exports
+*.png
+*.svg
+
+# OS cruft
+Thumbs.db
+desktop.ini
+.DS_Store
