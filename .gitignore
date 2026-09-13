@@ -9,6 +9,9 @@
 *.png
 *.svg
 
+# Local scratch — one-off published-brief sources, not part of the app
+scratch/
+
 # OS cruft
 Thumbs.db
 desktop.ini
