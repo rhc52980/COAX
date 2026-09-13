@@ -256,6 +256,21 @@ to the browser's print dialog, where "Save as PDF" gives you the file.
 Sections that have nothing in them are left out rather than printed empty, so a
 COA you haven't written notes for doesn't produce a page of blank headings.
 
+## Publish
+
+**Publish…** exports the active COA as a separate, self-contained HTML file —
+a single chart plus its notes, styled as its own document rather than a copy
+of the full COAX editor. It's ready to become a shareable, co-editable link:
+hand the file to a Claude Code session and ask it to publish it as a Claude
+Artifact. Anyone with the link can then open it, drag boxes, edit the notes,
+and save a new version — no file to pass around, and no COAX install needed
+on their end.
+
+It's a one-way export: editing the published page never changes anything back
+in `coax.html`, and republishing overwrites whatever the page held before, so
+treat the exported file as a snapshot of one COA at the moment you exported
+it, not a synced copy.
+
 ## Keyboard
 
 | Key | Does |
