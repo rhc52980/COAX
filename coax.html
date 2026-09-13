@@ -2310,8 +2310,8 @@ function renderCompare(){
   state.coas.forEach(c => {
     h += `<div class="ccard"><h3>${esc(c.name)}</h3>
       <div class="lbl">Concept</div><pre>${esc(c.notes.concept) || "&mdash;"}</pre>
-      <div class="lbl" style="color:#4ade80">Pros</div><pre>${esc(c.notes.pros) || "&mdash;"}</pre>
-      <div class="lbl" style="color:#f87171">Cons</div><pre>${esc(c.notes.cons) || "&mdash;"}</pre>
+      <div class="lbl" style="color:var(--pro)">Pros</div><pre>${esc(c.notes.pros) || "&mdash;"}</pre>
+      <div class="lbl" style="color:var(--con)">Cons</div><pre>${esc(c.notes.cons) || "&mdash;"}</pre>
       <div class="lbl">Assumptions</div><pre>${esc(c.notes.assumptions) || "&mdash;"}</pre>
       <div class="lbl">Risks</div><pre>${esc(c.notes.risks) || "&mdash;"}</pre>
       <div class="lbl">Size</div><pre>${c.nodes.length} boxes, ${c.edges.length} arrows</pre></div>`;
