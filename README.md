@@ -13,6 +13,8 @@ types (Role, Group) and three of the templates exist for exactly that.
 
 No install, no server, no account, no network. One file.
 
+[![Latest release](https://img.shields.io/github/v/release/rhc52980/COAX)](https://github.com/rhc52980/COAX/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/rhc52980/COAX/total)](https://github.com/rhc52980/COAX/releases)
 ![Platform](https://img.shields.io/badge/platform-any%20browser-lightgrey)
 ![Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen)
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
@@ -38,7 +40,10 @@ air-gapped box.
 
 ## Getting it
 
-Download `coax.html` and double-click it. That's the install.
+Grab `coax.html` from the [latest release](https://github.com/rhc52980/COAX/releases/latest)
+and double-click it. That's the install — no build, no unzip, nothing else to
+run. Cloning the repo and using the copy at the root works exactly the same;
+the release just pins a version.
 
 ## The three views
 
