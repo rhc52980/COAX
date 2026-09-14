@@ -17,6 +17,10 @@ No install, no server, no account, no network. One file.
 ![Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen)
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
 
+![A double-envelopment COA, with a risk box and a decision point, exported straight from COAX](docs/chart.svg)
+
+<sub>Sample plan — exported directly from the Chart view via COAX's own SVG export.</sub>
+
 ---
 
 ## Why it exists
@@ -58,11 +62,15 @@ a box is a seat or a department rather than a step. Clicking a swatch sets the
 type of whatever is selected, and the type `Tab` gives new children; dragging
 one places a box instead.
 
+![A leadership-team org chart: a director, a deputy, three functional leads, two teams](docs/org-chart.svg)
+
 ### Swim lanes
 
 The *same boxes*, re-laid-out as a synchronization matrix: phases across the
 top, lanes down the side. Build the flow once in Chart, then flip here to see
 it against time and responsibility.
+
+![The same plan as a synchronization matrix: three phases across the top, three lanes down the side](docs/swim-lanes.svg)
 
 - **Drag a box into a cell** to set its phase and lane. Where you drop it
   inside the cell sets its order

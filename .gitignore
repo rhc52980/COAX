@@ -8,6 +8,8 @@
 # Exports
 *.png
 *.svg
+!docs/*.png
+!docs/*.svg
 
 # Local scratch — one-off published-brief sources, not part of the app
 scratch/
