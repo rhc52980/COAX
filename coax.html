@@ -2237,6 +2237,19 @@ Economy-of-force element screens a secondary sector :: Minimum essential force, 
     & Engineering Team
   % Workstream Lead — QA
     & QA Team`},
+
+  {id:"org-matrix", tag:"Organization", name:"Matrix Org Chart",
+   desc:"Each specialist reports to two managers — a functional lead and a project lead — instead of one straight line up.",
+   concept:"Two managers, one team: each specialist reports to both a functional manager, who owns their discipline, and a project manager, who owns delivery — authority deliberately split rather than singular.",
+   // Everyone under Functional Manager already gets that one reporting line
+   // from the outline's indentation; extraEdges below adds each of their
+   // second line, from Project Manager, which no outline can express.
+   outline:`% Functional Manager
+  % Designer
+  % Engineer
+  % QA Analyst
+% Project Manager`,
+   extraEdges:[[4,1],[4,2],[4,3]]},
 ];
 
 const tmplScrim = document.getElementById("tmplScrim");
@@ -2274,6 +2287,15 @@ function useTemplate(id){
   const c = newCoa(t.name);
   const sections = parseOutline(t.outline);
   if(sections.length) itemsIntoCoa(c, sections[0].items);
+  // Outline indentation only ever gives a box one parent. A second reporting
+  // line (a matrix org's dual-report box, say) can't be written as outline
+  // text, so templates that need one list it here instead: pairs of indices
+  // into the outline, in the order its lines appear — same order c.nodes
+  // ends up in, since itemsIntoCoa pushes one node per item in that order.
+  if(t.extraEdges) t.extraEdges.forEach(([from, to]) => {
+    if(c.nodes[from] && c.nodes[to])
+      c.edges.push({id:uid(), from:c.nodes[from].id, to:c.nodes[to].id, label:""});
+  });
   layoutTree(c);
   if(t.concept) c.notes.concept = t.concept;
   state.coas.push(c); state.active = c.id;

@@ -101,12 +101,15 @@ new COA, already laid out, with a concept pre-filled in the notes panel. Under
 Under **Offense**: Frontal Attack, Single and Double Envelopment, Turning
 Movement, Infiltration, Penetration. Under **Defense**: Area Defense, Mobile
 Defense, Economy of Force. Under **Organization**: Basic Org Chart, Leadership
-Team, Project Team — built from Role and Group boxes rather than maneuver
-steps, for a reporting structure instead of a plan.
+Team, Project Team, Matrix Org Chart — built from Role and Group boxes rather
+than maneuver steps, for a reporting structure instead of a plan.
 
 Each template is built from a step outline internally — the same syntax and
 pipeline as Paste outline — so it inherits the same parsing rules (`?` for a
-decision, `!` for a risk, and so on). Adjust it afterward like any other COA;
+decision, `!` for a risk, and so on). Matrix Org Chart is the one exception:
+outline indentation only ever gives a box one parent, so its second reporting
+line (each specialist also reports to the project manager) is added as an
+extra arrow after the outline lands. Adjust it afterward like any other COA;
 nothing about a template box is special once it's placed.
 
 Reachable from the header, or right-click empty board / empty rail space.
