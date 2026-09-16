@@ -38,6 +38,11 @@ It also stays out of your business: **no cloud, no account, no telemetry, no
 CDN**. Nothing leaves the machine. Drop it on a thumb drive and it works on an
 air-gapped box.
 
+The one outward link is **Feedback**, beside the version in the top bar. It does
+nothing until you click it, then opens a new GitHub issue in your browser,
+pre-filled with the COAX version and your browser details. Nothing from your
+operations goes into it, and you see everything before you post.
+
 ## Getting it
 
 Grab `coax.html` from the [latest release](https://github.com/rhc52980/COAX/releases/latest)

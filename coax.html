@@ -91,6 +91,12 @@
   }
   body > header .brand{font-weight:700; letter-spacing:.4px; color:var(--accent); margin-right:4px}
   body > header .verTag{font-size:10px; font-weight:600; color:var(--dim); margin-right:8px; letter-spacing:.3px}
+  /* Feedback sits with the version because a report needs the version, and
+     because it's the one corner of the header with room to spare. A plain
+     link: nothing is fetched until it's clicked, so "no network" still holds. */
+  body > header .fbLink{font-size:10px; font-weight:600; color:var(--dim); margin:0 8px 0 -4px;
+    letter-spacing:.3px; text-decoration:none; white-space:nowrap}
+  body > header .fbLink:hover, body > header .fbLink:focus-visible{color:var(--accent); text-decoration:underline}
   #projTitle{
     background:transparent; border:1px solid transparent; border-radius:6px;
     padding:4px 8px; font-size:15px; font-weight:600; min-width:240px;
@@ -435,6 +441,8 @@
 <header>
   <span class="brand" title="Course Of Action eXplorer">COAX</span>
   <span class="verTag" id="verTag"></span>
+  <a class="fbLink" id="fbLink" href="https://github.com/rhc52980/COAX/issues/new" target="_blank" rel="noopener noreferrer"
+     title="Report a bug or suggest an idea on GitHub (opens in a new tab)">Feedback</a>
   <input id="projTitle" placeholder="Operation name">
   <span class="sep"></span>
   <div class="views">
@@ -594,6 +602,17 @@ applyTheme(theme);
 const verTagEl = document.getElementById("verTag");
 verTagEl.textContent = "v" + APP_VERSION;
 verTagEl.title = "COAX v" + APP_VERSION;
+// The issue form is pre-filled with a skeleton and the version, and nothing
+// from the operation itself: the reporter sees exactly this before posting,
+// and a plan never ends up in a public issue by accident.
+document.getElementById("fbLink").href = "https://github.com/rhc52980/COAX/issues/new?body=" + encodeURIComponent([
+  "**What happened?**", "", "",
+  "**What did you expect instead?**", "", "",
+  "**Steps to reproduce**", "", "",
+  "---",
+  "COAX v" + APP_VERSION,
+  navigator.userAgent,
+].join("\n"));
 const GRID = 10, NODE_W = 190, PAD = 10;
 const T_SIZE = 13, T_LH = 17, B_SIZE = 12, B_LH = 16, U_SIZE = 11, U_LH = 14;
 /* swim-lane frame metrics (world units) */
