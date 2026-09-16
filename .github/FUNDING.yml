@@ -1,0 +1,4 @@
+# Account-wide default. This gives every public repository owned by rhc52980
+# a Sponsor button, including ones created later. An individual repository can
+# override it by adding its own .github/FUNDING.yml.
+custom: ["https://paypal.me/edwardgoatboy"]
